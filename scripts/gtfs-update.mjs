@@ -621,7 +621,12 @@ function handleOptionalFileError(fileName, error) {
 }
 
 function isDecodeFailure(error) {
-  return error instanceof Error && (error instanceof GtfsDecodeError || error.name === 'GtfsDecodeError' || error.code === 'GTFS_DECODE_ERROR')
+  return Boolean(
+    error &&
+      typeof error === 'object' &&
+      ('name' in error || 'code' in error) &&
+      ((error instanceof GtfsDecodeError) || error.name === 'GtfsDecodeError' || error.code === 'GTFS_DECODE_ERROR')
+  )
 }
 
 async function parseExtractedFile(extractedFiles, fileName, { required = true } = {}) {
