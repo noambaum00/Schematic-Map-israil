@@ -568,38 +568,21 @@ function projectStopTimeRow(row) {
   }
 }
 
-async function readFileSample(filePath, maximumBytes = 8192) {
-  return new Promise((resolve, reject) => {
-    const stream = createReadStream(filePath, { highWaterMark: maximumBytes })
-
-    stream.once('data', (chunk) => {
-      stream.destroy()
-      resolve(Buffer.from(chunk))
-    })
-
-    stream.once('end', () => resolve(Buffer.alloc(0)))
-    stream.once('error', (error) => reject(error))
-  })
-}
-
-async function isUtf8CompatibleStopTimesFile(filePath) {
-  const sample = await readFileSample(filePath)
-
-  if (sample.length === 0) {
-    return true
-  }
-
-  const preferredDecoders = getPreferredTextDecoders(sample)
-
-  if (preferredDecoders[0]?.encoding !== 'utf-8') {
-    return false
-  }
+async function isUtf8StreamDecodable(filePath) {
+  const utf8Decoder = new TextDecoder('utf-8', { fatal: true })
+  const stream = createReadStream(filePath)
 
   try {
-    new TextDecoder('utf-8', { fatal: true }).decode(sample, { stream: true })
+    for await (const chunk of stream) {
+      utf8Decoder.decode(chunk, { stream: true })
+    }
+
+    utf8Decoder.decode()
     return true
   } catch {
     return false
+  } finally {
+    stream.destroy()
   }
 }
 
@@ -623,7 +606,7 @@ async function forEachStopTimeRow(filePath, onRow) {
     return
   }
 
-  if (!(await isUtf8CompatibleStopTimesFile(filePath))) {
+  if (!(await isUtf8StreamDecodable(filePath))) {
     const stopTimes = await parseStopTimesInMemory(filePath)
 
     for (const stopTime of stopTimes) {
@@ -708,35 +691,7 @@ async function parseStopTimesFile(filePath) {
 
 async function buildRepresentativeTripsFromStopTimes(filePath, tripToRouteMap) {
   const representativeTrips = new Map()
-  let currentTripId = null
-  let currentRouteId = null
-  let currentStops = []
-
-  const flushCurrentTrip = () => {
-    if (!currentTripId || !currentRouteId || currentStops.length < 2) {
-      currentTripId = null
-      currentRouteId = null
-      currentStops = []
-      return
-    }
-
-    const orderedStops = [...currentStops]
-      .sort((left, right) => left.stop_sequence - right.stop_sequence)
-      .map((stop) => stop.stop_id)
-      .filter(Boolean)
-    const existingRepresentative = representativeTrips.get(currentRouteId)
-
-    if (!existingRepresentative || orderedStops.length > existingRepresentative.stopIds.length) {
-      representativeTrips.set(currentRouteId, {
-        stopIds: orderedStops,
-        tripId: currentTripId,
-      })
-    }
-
-    currentTripId = null
-    currentRouteId = null
-    currentStops = []
-  }
+  const stopSequencesByTrip = new Map()
 
   await forEachStopTimeRow(filePath, (stopTime) => {
     const routeId = tripToRouteMap.get(stopTime.trip_id)
@@ -744,24 +699,33 @@ async function buildRepresentativeTripsFromStopTimes(filePath, tripToRouteMap) {
     if (!routeId) {
       return
     }
-
-    if (currentTripId && stopTime.trip_id !== currentTripId) {
-      flushCurrentTrip()
-    }
-
-    if (!currentTripId) {
-      currentTripId = stopTime.trip_id
-      currentRouteId = routeId
-      currentStops = []
-    }
-
-    currentStops.push({
+    const tripStops = stopSequencesByTrip.get(stopTime.trip_id) ?? { routeId, stops: [] }
+    tripStops.stops.push({
       stop_id: stopTime.stop_id,
       stop_sequence: Number(stopTime.stop_sequence ?? 0),
     })
+    stopSequencesByTrip.set(stopTime.trip_id, tripStops)
   })
 
-  flushCurrentTrip()
+  for (const [tripId, tripData] of stopSequencesByTrip.entries()) {
+    if (!tripData.routeId || tripData.stops.length < 2) {
+      continue
+    }
+
+    const orderedStops = tripData.stops
+      .sort((left, right) => left.stop_sequence - right.stop_sequence)
+      .map((stop) => stop.stop_id)
+      .filter(Boolean)
+    const existingRepresentative = representativeTrips.get(tripData.routeId)
+
+    if (!existingRepresentative || orderedStops.length > existingRepresentative.stopIds.length) {
+      representativeTrips.set(tripData.routeId, {
+        stopIds: orderedStops,
+        tripId,
+      })
+    }
+  }
+
   return representativeTrips
 }
 
