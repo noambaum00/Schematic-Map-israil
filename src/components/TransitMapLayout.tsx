@@ -46,9 +46,9 @@ export function TransitMapLayout() {
   const nodesRef = useRef<CanvasNode[]>([])
   const poiCounterRef = useRef(1)
   const hasAppliedSharedStateRef = useRef(false)
+  const languageRef = useRef<TransitLanguage>(language)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const text = interfaceText[language]
-  const bundledFeedUnavailableMessage = interfaceText[initialSharedState.state?.language ?? defaultLanguage].bundledFeedUnavailable
 
   const allRoutes = useMemo(() => feed?.routes ?? [], [feed?.routes])
 
@@ -119,6 +119,7 @@ export function TransitMapLayout() {
   const selectedEdge = useMemo(() => edges.find((edge) => edge.id === selectedEdgeId) ?? null, [edges, selectedEdgeId])
 
   useEffect(() => {
+    languageRef.current = language
     document.documentElement.dir = getDirection(language)
     document.body.dir = getDirection(language)
     document.documentElement.lang = language === 'English' ? 'en' : language === 'עברית' ? 'he' : 'ar'
@@ -252,14 +253,14 @@ export function TransitMapLayout() {
 
         setFeed(null)
         setSelectedRouteId(null)
-        setLoadError(error instanceof Error ? error.message : bundledFeedUnavailableMessage)
+        setLoadError(error instanceof Error ? error.message : interfaceText[languageRef.current].bundledFeedUnavailable)
       } finally {
         if (latestRequestId.current === requestId) {
           setIsLoading(false)
         }
       }
     })()
-  }, [applyParsedFeed, bundledFeedUnavailableMessage])
+  }, [applyParsedFeed])
 
   async function handleFileSelected(file: File | null) {
     if (!file) {
