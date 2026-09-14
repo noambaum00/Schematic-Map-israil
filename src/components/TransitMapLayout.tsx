@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 
 import type { ParsedFeed, ParsedRoute, TransitLanguage } from '../lib/gtfs'
 import { parseGtfsArchive } from '../lib/gtfs'
@@ -14,6 +14,7 @@ export function TransitMapLayout() {
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const latestRequestId = useRef(0)
 
   const filteredRoutes = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -56,19 +57,33 @@ export function TransitMapLayout() {
       return
     }
 
+    const requestId = latestRequestId.current + 1
+    latestRequestId.current = requestId
+
     setIsLoading(true)
     setLoadError(null)
 
     try {
       const parsedFeed = await parseGtfsArchive(file)
+
+      if (latestRequestId.current !== requestId) {
+        return
+      }
+
       setFeed(parsedFeed)
       setSelectedRouteId(parsedFeed.routes[0]?.id ?? null)
     } catch (error) {
+      if (latestRequestId.current !== requestId) {
+        return
+      }
+
       setFeed(null)
       setSelectedRouteId(null)
       setLoadError(error instanceof Error ? error.message : 'Failed to parse GTFS archive.')
     } finally {
-      setIsLoading(false)
+      if (latestRequestId.current === requestId) {
+        setIsLoading(false)
+      }
     }
   }
 

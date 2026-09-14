@@ -259,6 +259,10 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
           wheelchairBoarding: stop.wheelchair_boarding,
         }))
 
+      if (uniqueStops.length < 2) {
+        return null
+      }
+
       return {
         id: route.route_id,
         label: buildRouteLabel(route),
