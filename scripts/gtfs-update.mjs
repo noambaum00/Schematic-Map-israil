@@ -236,14 +236,35 @@ function getHeaderLine(text) {
   return text.replace(/^\uFEFF/, '').split(/\r?\n/u, 1)[0]?.trim() ?? ''
 }
 
-function isLikelyGtfsCsv(text) {
+function getTextDecoderSpec(encoding) {
+  const decoder = textDecoderSpecs.find((candidate) => candidate.encoding === encoding)
+
+  if (!decoder) {
+    throw new Error(`Unsupported decoder preference: ${encoding}`)
+  }
+
+  return decoder
+}
+
+function getCsvDelimiter(text, fileName) {
   const headerLine = getHeaderLine(text)
 
-  if (!headerLine || !headerLine.includes(',') || headerLine.includes('\u0000')) {
+  if (fileName === 'translations.txt' && headerLine.includes(';') && !headerLine.includes(',')) {
+    return ';'
+  }
+
+  return ','
+}
+
+function isLikelyGtfsCsv(text, fileName) {
+  const headerLine = getHeaderLine(text)
+  const delimiter = getCsvDelimiter(text, fileName)
+
+  if (!headerLine || !headerLine.includes(delimiter) || headerLine.includes('\u0000')) {
     return false
   }
 
-  const columns = headerLine.split(',').map((value) => value.trim()).filter(Boolean)
+  const columns = headerLine.split(delimiter).map((value) => value.trim()).filter(Boolean)
   return columns.length >= 2 && columns.every((column) => /^[A-Za-z0-9_.-]+$/u.test(column))
 }
 
@@ -255,11 +276,13 @@ function getPreferredTextDecoders(buffer) {
   }
 
   if (leadingBytes[0] === 0xff && leadingBytes[1] === 0xfe) {
-    return [textDecoderSpecs[1], ...textDecoderSpecs.filter((decoder) => decoder.encoding !== 'utf-16le')]
+    const preferredDecoder = getTextDecoderSpec('utf-16le')
+    return [preferredDecoder, ...textDecoderSpecs.filter((decoder) => decoder.encoding !== preferredDecoder.encoding)]
   }
 
   if (leadingBytes[0] === 0xfe && leadingBytes[1] === 0xff) {
-    return [textDecoderSpecs[2], ...textDecoderSpecs.filter((decoder) => decoder.encoding !== 'utf-16be')]
+    const preferredDecoder = getTextDecoderSpec('utf-16be')
+    return [preferredDecoder, ...textDecoderSpecs.filter((decoder) => decoder.encoding !== preferredDecoder.encoding)]
   }
 
   const sample = buffer.subarray(0, Math.min(buffer.length, 128))
@@ -279,11 +302,13 @@ function getPreferredTextDecoders(buffer) {
   }
 
   if (oddZeroBytes >= 8 && oddZeroBytes >= evenZeroBytes * 2) {
-    return [textDecoderSpecs[1], ...textDecoderSpecs.filter((decoder) => decoder.encoding !== 'utf-16le')]
+    const preferredDecoder = getTextDecoderSpec('utf-16le')
+    return [preferredDecoder, ...textDecoderSpecs.filter((decoder) => decoder.encoding !== preferredDecoder.encoding)]
   }
 
   if (evenZeroBytes >= 8 && evenZeroBytes >= oddZeroBytes * 2) {
-    return [textDecoderSpecs[2], ...textDecoderSpecs.filter((decoder) => decoder.encoding !== 'utf-16be')]
+    const preferredDecoder = getTextDecoderSpec('utf-16be')
+    return [preferredDecoder, ...textDecoderSpecs.filter((decoder) => decoder.encoding !== preferredDecoder.encoding)]
   }
 
   return textDecoderSpecs
@@ -297,7 +322,7 @@ function decodeGtfsText(buffer, fileName) {
       const decoder = new TextDecoder(encoding, options)
       const decoded = decoder.decode(buffer)
 
-      if (!isLikelyGtfsCsv(decoded)) {
+      if (!isLikelyGtfsCsv(decoded, fileName)) {
         attemptedEncodings.push(`${encoding} (decoded text did not match GTFS CSV headers)`)
         continue
       }
@@ -314,6 +339,7 @@ function decodeGtfsText(buffer, fileName) {
 
 function parseCsv(content, fileName) {
   const parsed = Papa.parse(content.replace(/^\uFEFF/, ''), {
+    delimiter: getCsvDelimiter(content, fileName),
     header: true,
     skipEmptyLines: true,
     transformHeader: (header) => header.trim(),
