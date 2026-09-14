@@ -30,6 +30,14 @@ test('decodes UTF-32LE GTFS files and preserves header validation', () => {
   assert.deepEqual(parseCsv(decoded, 'stop_times.txt'), [{ trip_id: 'T1', stop_id: 'S1', stop_sequence: '1' }])
 })
 
+test('removes embedded NUL characters when headers are valid', () => {
+  const contentWithNull = 'trip_id,stop_id,stop_sequence\nT1,S1,\u00001\n'
+  const decoded = decodeGtfsText(Buffer.from(contentWithNull, 'utf8'), 'stop_times.txt')
+
+  assert.equal(decoded.includes('\u0000'), false)
+  assert.deepEqual(parseCsv(decoded, 'stop_times.txt'), [{ trip_id: 'T1', stop_id: 'S1', stop_sequence: '1' }])
+})
+
 test('skips optional files only when decoding fails', async () => {
   const tempDirectory = await mkdtemp(join(tmpdir(), 'gtfs-update-test-'))
 

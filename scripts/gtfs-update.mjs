@@ -481,24 +481,20 @@ function decodeGtfsText(buffer, fileName) {
     try {
       const decoder = new TextDecoder(encoding, options)
       const decoded = stripLeadingBom(decoder.decode(buffer))
-
-      if (decoded.includes('\u0000')) {
-        attemptedEncodings.push(`${encoding} (decoded text still contained NUL bytes)`)
-        continue
-      }
+      const normalizedDecoded = decoded.includes('\u0000') ? decoded.split('\u0000').join('') : decoded
 
       if (!shouldMatchExpectedHeaders(fileName)) {
-        return decoded
+        return normalizedDecoded
       }
 
-      const delimiter = getCsvDelimiter(decoded, fileName)
-      const columns = parseCsvHeaderColumnsWithDelimiter(decoded, delimiter)
+      const delimiter = getCsvDelimiter(normalizedDecoded, fileName)
+      const columns = parseCsvHeaderColumnsWithDelimiter(normalizedDecoded, delimiter)
 
       if (matchesExpectedHeaders(fileName, columns)) {
-        return decoded
+        return normalizedDecoded
       }
 
-      fallbackDecodedText ??= decoded
+      fallbackDecodedText ??= normalizedDecoded
       attemptedEncodings.push(`${encoding} (decoded text headers did not match ${fileName})`)
     } catch (error) {
       attemptedEncodings.push(`${encoding} (${error && typeof error === 'object' && 'name' in error ? error.name : 'decode error'})`)
