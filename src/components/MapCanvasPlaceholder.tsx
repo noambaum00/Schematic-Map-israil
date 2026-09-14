@@ -40,12 +40,6 @@ type MapCanvasPlaceholderProps = {
   wrapperRef: RefObject<HTMLDivElement | null>
 }
 
-const emptyStates: Record<TransitLanguage, string> = {
-  English: 'Loading map',
-  'עברית': 'טוען מפה',
-  'العربية': 'جارٍ تحميل الخريطة',
-}
-
 const nodeTypes: NodeTypes = {
   hub: TransferHubNode,
   poi: POINode,
@@ -162,7 +156,7 @@ function CanvasInner({
                 </div>
               ) : (
                 <p aria-live="polite" className="mt-4 text-sm text-slate-600" role="status">
-                  {isLoading ? activeText.parsingGtfs : emptyStates[activeLanguage]}
+                  {isLoading ? activeText.readingArchive : activeText.loadFeedToBrowse}
                 </p>
               )
             ) : (

@@ -88,7 +88,9 @@ function ActionButton({
   icon,
   label,
   onClick,
+  ariaLabel,
 }: {
+  ariaLabel?: string
   disabled?: boolean
   icon: ReactElement
   label: string
@@ -96,6 +98,7 @@ function ActionButton({
 }) {
   return (
     <button
+      aria-label={ariaLabel}
       className="inline-flex items-center justify-center gap-2 rounded-2xl border border-blue-100 bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:border-blue-200 disabled:bg-blue-300"
       disabled={disabled}
       type="button"
@@ -180,7 +183,7 @@ export function Sidebar({
                     value={language}
                     onChange={() => onLanguageChange(language)}
                   />
-                  <span className="flex min-w-12 items-center justify-center rounded-xl px-2 py-2 text-xs font-medium text-slate-500 transition peer-checked:bg-blue-600 peer-checked:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-500 hover:text-blue-700">
+                  <span className="flex min-h-10 min-w-[5rem] items-center justify-center rounded-xl px-3 py-2 text-center text-[11px] leading-tight font-medium text-slate-500 transition whitespace-normal peer-checked:bg-blue-600 peer-checked:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-500 hover:text-blue-700">
                     {language}
                   </span>
                 </label>
@@ -238,10 +241,22 @@ export function Sidebar({
               ))}
             </select>
           </div>
-          <ActionButton icon={<PinIcon />} label={text.addPoi} onClick={onAddPoi} />
-          <ActionButton disabled={isExporting} icon={<ExportIcon />} label={isExporting ? text.exportingSvg : text.exportSvg} onClick={onExportSvg} />
+          <ActionButton ariaLabel={text.addPoiActionLabel} icon={<PinIcon />} label={text.addPoi} onClick={onAddPoi} />
+          <ActionButton
+            ariaLabel={text.exportActionLabel}
+            disabled={isExporting}
+            icon={<ExportIcon />}
+            label={isExporting ? text.exportingSvg : text.exportSvg}
+            onClick={onExportSvg}
+          />
           <div className="sm:col-span-2">
-            <ActionButton disabled={isSharing} icon={<ShareIcon />} label={isSharing ? text.sharingMap : text.shareMap} onClick={onShareMap} />
+            <ActionButton
+              ariaLabel={text.shareActionLabel}
+              disabled={isSharing}
+              icon={<ShareIcon />}
+              label={isSharing ? text.sharingMap : text.shareMap}
+              onClick={onShareMap}
+            />
           </div>
         </div>
         {exportError ? <p className="text-sm text-red-600">{exportError}</p> : null}
