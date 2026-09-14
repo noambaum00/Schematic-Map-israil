@@ -6,17 +6,35 @@ import Papa from 'papaparse'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { pathToFileURL } from 'node:url'
 
 const GTFS_SOURCE_URL = process.env.GTFS_SOURCE_URL ?? 'https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip'
 const OUTPUT_FILE = process.env.GTFS_OUTPUT_FILE ?? join(process.cwd(), 'public', 'transit_graph.json')
 const REQUIRED_FILES = ['routes.txt', 'trips.txt', 'stop_times.txt', 'stops.txt']
 const OPTIONAL_FILES = ['agency.txt', 'translations.txt']
 const STRIPPED_NAME_PATTERNS = [/\bplatform\b/gi, /\bterminal\b/gi, /\bstation\b/gi, /\bstop\b/gi, /\bbay\b/gi, /מסוף/gi, /רציף/gi]
-const textDecoders = [
-  new TextDecoder('utf-8', { fatal: true }),
-  new TextDecoder('windows-1255'),
-  new TextDecoder('windows-1252'),
+const supportedCsvDelimiters = [',', ';']
+const expectedGtfsHeaders = {
+  'routes.txt': ['route_id', 'route_type'],
+  'stop_times.txt': ['trip_id', 'stop_id', 'stop_sequence'],
+  'stops.txt': ['stop_id', 'stop_name', 'stop_lat', 'stop_lon'],
+  'trips.txt': ['route_id', 'trip_id'],
+}
+const textDecoderSpecs = [
+  { encoding: 'utf-8', options: { fatal: true } },
+  { encoding: 'utf-16le', options: { fatal: true } },
+  { encoding: 'utf-16be', options: { fatal: true } },
+  { encoding: 'windows-1255', options: { fatal: true } },
+  { encoding: 'windows-1252', options: { fatal: true } },
 ]
+
+class GtfsDecodeError extends Error {
+  constructor(message) {
+    super(message)
+    this.name = 'GtfsDecodeError'
+    this.code = 'GTFS_DECODE_ERROR'
+  }
+}
 
 function normalizeWhitespace(value) {
   return value.replace(/\s+/g, ' ').trim()
@@ -230,20 +248,184 @@ function clusterStopsIntoTransferHubs(stops, mergeRadiusMeters = 200) {
   return { hubNodes, stopToHubMap }
 }
 
-function decodeGtfsText(buffer) {
-  for (const decoder of textDecoders) {
+function stripLeadingBom(text) {
+  return text.replace(/^\uFEFF/, '')
+}
+
+function getTextDecoderSpec(encoding) {
+  const decoder = textDecoderSpecs.find((candidate) => candidate.encoding === encoding)
+
+  if (!decoder) {
+    throw new Error(`Unsupported decoder preference: ${encoding}`)
+  }
+
+  return decoder
+}
+
+function parseCsvHeaderColumnsWithDelimiter(text, delimiter) {
+  const parsed = Papa.parse(stripLeadingBom(text), {
+    delimiter,
+    preview: 1,
+    skipEmptyLines: true,
+  })
+
+  if (parsed.errors.length > 0) {
+    return []
+  }
+
+  return Array.isArray(parsed.data[0]) ? parsed.data[0].map((value) => stripLeadingBom(String(value).trim())).filter(Boolean) : []
+}
+
+function matchesExpectedHeaders(fileName, columns) {
+  const availableHeaders = new Set(columns)
+
+  if (fileName === 'translations.txt') {
+    const hasLanguageColumn = availableHeaders.has('language') || availableHeaders.has('lang')
+    return (
+      availableHeaders.has('table_name') &&
+      availableHeaders.has('field_name') &&
+      availableHeaders.has('translation') &&
+      hasLanguageColumn &&
+      (availableHeaders.has('record_id') || availableHeaders.has('field_value'))
+    )
+  }
+
+  const expectedHeaders = expectedGtfsHeaders[fileName]
+
+  if (!expectedHeaders) {
+    return true
+  }
+
+  return expectedHeaders.every((header) => availableHeaders.has(header))
+}
+
+function shouldMatchExpectedHeaders(fileName) {
+  return fileName === 'translations.txt' || Object.hasOwn(expectedGtfsHeaders, fileName)
+}
+
+function getCsvDelimiter(text, fileName) {
+  const attempts = supportedCsvDelimiters.map((delimiter) => ({
+    columns: parseCsvHeaderColumnsWithDelimiter(text, delimiter),
+    delimiter,
+  }))
+  const preferredAttempt = attempts.find((attempt) => matchesExpectedHeaders(fileName, attempt.columns))
+
+  if (preferredAttempt) {
+    return preferredAttempt.delimiter
+  }
+
+  return attempts.sort((left, right) => right.columns.length - left.columns.length)[0]?.delimiter ?? ','
+}
+
+function getPreferredTextDecoders(buffer) {
+  const leadingBytes = buffer.subarray(0, 4)
+
+  if (leadingBytes[0] === 0xef && leadingBytes[1] === 0xbb && leadingBytes[2] === 0xbf) {
+    const preferredDecoder = getTextDecoderSpec('utf-8')
+    return [preferredDecoder, ...textDecoderSpecs.filter((decoder) => decoder.encoding !== preferredDecoder.encoding)]
+  }
+
+  if (leadingBytes[0] === 0xff && leadingBytes[1] === 0xfe) {
+    const preferredDecoder = getTextDecoderSpec('utf-16le')
+    return [preferredDecoder, ...textDecoderSpecs.filter((decoder) => decoder.encoding !== preferredDecoder.encoding)]
+  }
+
+  if (leadingBytes[0] === 0xfe && leadingBytes[1] === 0xff) {
+    const preferredDecoder = getTextDecoderSpec('utf-16be')
+    return [preferredDecoder, ...textDecoderSpecs.filter((decoder) => decoder.encoding !== preferredDecoder.encoding)]
+  }
+
+  const sample = buffer.subarray(0, Math.min(buffer.length, 128))
+  let evenZeroBytes = 0
+  let oddZeroBytes = 0
+
+  for (let index = 0; index < sample.length; index += 1) {
+    if (sample[index] !== 0) {
+      continue
+    }
+
+    if (index % 2 === 0) {
+      evenZeroBytes += 1
+    } else {
+      oddZeroBytes += 1
+    }
+  }
+
+  if (oddZeroBytes >= 8 && oddZeroBytes >= evenZeroBytes * 2) {
+    const preferredDecoder = getTextDecoderSpec('utf-16le')
+    return [preferredDecoder, ...textDecoderSpecs.filter((decoder) => decoder.encoding !== preferredDecoder.encoding)]
+  }
+
+  if (evenZeroBytes >= 8 && evenZeroBytes >= oddZeroBytes * 2) {
+    const preferredDecoder = getTextDecoderSpec('utf-16be')
+    return [preferredDecoder, ...textDecoderSpecs.filter((decoder) => decoder.encoding !== preferredDecoder.encoding)]
+  }
+
+  return textDecoderSpecs
+}
+
+function decodeGtfsText(buffer, fileName) {
+  const attemptedEncodings = []
+  let fallbackDecodedText = null
+
+  for (const { encoding, options } of getPreferredTextDecoders(buffer)) {
     try {
-      return decoder.decode(buffer)
-    } catch {
+      const decoder = new TextDecoder(encoding, options)
+      const decoded = stripLeadingBom(decoder.decode(buffer))
+
+      if (decoded.includes('\u0000')) {
+        attemptedEncodings.push(`${encoding} (decoded text still contained NUL bytes)`)
+        continue
+      }
+
+      if (!shouldMatchExpectedHeaders(fileName)) {
+        return decoded
+      }
+
+      const delimiter = getCsvDelimiter(decoded, fileName)
+      const columns = parseCsvHeaderColumnsWithDelimiter(decoded, delimiter)
+
+      if (matchesExpectedHeaders(fileName, columns)) {
+        return decoded
+      }
+
+      fallbackDecodedText ??= decoded
+      attemptedEncodings.push(`${encoding} (decoded text headers did not match ${fileName})`)
+    } catch (error) {
+      attemptedEncodings.push(`${encoding} (${error && typeof error === 'object' && 'name' in error ? error.name : 'decode error'})`)
       continue
     }
   }
 
-  throw new Error('Unable to decode GTFS text file.')
+  if (fallbackDecodedText && shouldMatchExpectedHeaders(fileName)) {
+    throw new Error(`Failed to parse ${fileName}: missing expected GTFS headers.`)
+  }
+
+  if (fallbackDecodedText) {
+    return fallbackDecodedText
+  }
+
+  const attemptsSummary = attemptedEncodings.join(', ') || 'no decoders produced usable text'
+  throw new GtfsDecodeError(
+    process.env.GTFS_DEBUG_DECODING === '1' ? `Unable to decode ${fileName}. Tried: ${attemptsSummary}` : `Unable to decode ${fileName}.`
+  )
 }
 
-function parseCsv(content, fileName) {
-  const parsed = Papa.parse(content.replace(/^\uFEFF/, ''), {
+function validateParsedGtfsHeaders(fileName, content, delimiter) {
+  if (!shouldMatchExpectedHeaders(fileName)) {
+    return
+  }
+
+  const headerColumns = parseCsvHeaderColumnsWithDelimiter(content, delimiter)
+
+  if (!matchesExpectedHeaders(fileName, headerColumns)) {
+    throw new Error(`Failed to parse ${fileName}: missing expected GTFS headers.`)
+  }
+}
+
+function parseCsv(content, fileName, delimiter = getCsvDelimiter(content, fileName)) {
+  const parsed = Papa.parse(stripLeadingBom(content), {
+    delimiter,
     header: true,
     skipEmptyLines: true,
     transformHeader: (header) => header.trim(),
@@ -299,7 +481,9 @@ function buildTranslationMap(translations) {
   const translationMap = new Map()
 
   for (const translation of translations) {
-    if (translation.table_name !== 'stops' || translation.field_name !== 'stop_name' || !translation.record_id) {
+    const translationRecordId = translation.record_id ?? translation.field_value
+
+    if (translation.table_name !== 'stops' || translation.field_name !== 'stop_name' || !translationRecordId) {
       continue
     }
 
@@ -309,9 +493,9 @@ function buildTranslationMap(translations) {
       continue
     }
 
-    const localizedNames = translationMap.get(translation.record_id) ?? {}
+    const localizedNames = translationMap.get(translationRecordId) ?? {}
     localizedNames[language] = translation.translation
-    translationMap.set(translation.record_id, localizedNames)
+    translationMap.set(translationRecordId, localizedNames)
   }
 
   return translationMap
@@ -472,30 +656,55 @@ async function extractFilesToTempDirectory(buffer) {
   }
 }
 
-async function readExtractedFile(extractedFiles, fileName) {
+function handleOptionalFileError(fileName, error) {
+  console.warn(`Skipping optional ${fileName}: ${error instanceof Error ? error.message : error}`)
+}
+
+function isDecodeFailure(error) {
+  return Boolean(
+    error &&
+      typeof error === 'object' &&
+      ('name' in error || 'code' in error) &&
+      ((error instanceof GtfsDecodeError) || error.name === 'GtfsDecodeError' || error.code === 'GTFS_DECODE_ERROR')
+  )
+}
+
+async function parseExtractedFile(extractedFiles, fileName, { required = true } = {}) {
   const filePath = extractedFiles.get(fileName)
 
   if (!filePath) {
+    if (required) {
+      throw new Error(`Missing ${fileName} in the extracted GTFS archive.`)
+    }
+
     return null
   }
 
-  return decodeGtfsText(await readFile(filePath))
+  let content
+
+  try {
+    content = decodeGtfsText(await readFile(filePath), fileName)
+  } catch (error) {
+    if (!required && isDecodeFailure(error)) {
+      handleOptionalFileError(fileName, error)
+      return null
+    }
+
+    throw error
+  }
+
+  const delimiter = getCsvDelimiter(content, fileName)
+  validateParsedGtfsHeaders(fileName, content, delimiter)
+  return parseCsv(content, fileName, delimiter)
 }
 
 async function buildTransitGraphPayload(extractedFiles) {
-  const agencyText = await readExtractedFile(extractedFiles, 'agency.txt')
-  const routesText = await readExtractedFile(extractedFiles, 'routes.txt')
-  const tripsText = await readExtractedFile(extractedFiles, 'trips.txt')
-  const stopTimesText = await readExtractedFile(extractedFiles, 'stop_times.txt')
-  const stopsText = await readExtractedFile(extractedFiles, 'stops.txt')
-  const translationsText = await readExtractedFile(extractedFiles, 'translations.txt')
-
-  const agencies = agencyText ? parseCsv(agencyText, 'agency.txt') : []
-  const routes = parseCsv(routesText ?? '', 'routes.txt')
-  const trips = parseCsv(tripsText ?? '', 'trips.txt')
-  const stopTimes = parseCsv(stopTimesText ?? '', 'stop_times.txt')
-  const stops = parseCsv(stopsText ?? '', 'stops.txt')
-  const translations = translationsText ? parseCsv(translationsText, 'translations.txt') : []
+  const agencies = (await parseExtractedFile(extractedFiles, 'agency.txt', { required: false })) ?? []
+  const routes = (await parseExtractedFile(extractedFiles, 'routes.txt')) ?? []
+  const trips = (await parseExtractedFile(extractedFiles, 'trips.txt')) ?? []
+  const stopTimes = (await parseExtractedFile(extractedFiles, 'stop_times.txt')) ?? []
+  const stops = (await parseExtractedFile(extractedFiles, 'stops.txt')) ?? []
+  const translations = (await parseExtractedFile(extractedFiles, 'translations.txt', { required: false })) ?? []
   const translationMap = buildTranslationMap(translations)
 
   const agencyMap = new Map()
@@ -638,7 +847,11 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error)
-  process.exitCode = 1
-})
+export { buildTranslationMap, decodeGtfsText, getCsvDelimiter, parseCsv, parseExtractedFile }
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error)
+    process.exitCode = 1
+  })
+}
