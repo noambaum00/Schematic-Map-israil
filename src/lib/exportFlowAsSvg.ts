@@ -30,6 +30,7 @@ export async function exportFlowAsSvg<NodeType extends Node = Node, EdgeType ext
 
   const nodes = reactFlow.getNodes()
   const previousViewport = reactFlow.getViewport()
+  let blobUrl: string | null = null
 
   try {
     if (nodes.length > 0) {
@@ -44,21 +45,20 @@ export async function exportFlowAsSvg<NodeType extends Node = Node, EdgeType ext
     })
     const response = await fetch(dataUrl)
     const blob = await response.blob()
-    const blobUrl = URL.createObjectURL(blob)
-    const link = document.createElement('a')
+    blobUrl = URL.createObjectURL(blob)
 
+    const link = document.createElement('a')
     link.href = blobUrl
     link.download = fileName.endsWith('.svg') ? fileName : `${fileName}.svg`
     document.body.append(link)
     link.click()
     link.remove()
+  } finally {
+    await reactFlow.setViewport(previousViewport, { duration: 0 })
+    await waitForPaint()
 
-    await reactFlow.setViewport(previousViewport, { duration: 0 })
-    await waitForPaint()
-    URL.revokeObjectURL(blobUrl)
-  } catch (error) {
-    await reactFlow.setViewport(previousViewport, { duration: 0 })
-    await waitForPaint()
-    throw error
+    if (blobUrl) {
+      URL.revokeObjectURL(blobUrl)
+    }
   }
 }

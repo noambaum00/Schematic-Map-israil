@@ -15,7 +15,7 @@ This phase upgrades the live GTFS route view into an interactive React Flow canv
 - edit the selected POI label from the sidebar
 - manually draw new edges between POI and transit nodes with standard React Flow connections
 - export the full fitted graph as a high-resolution SVG using `html-to-image`
-- configure Vite and GitHub Actions for GitHub Pages deployment
+- configure Vite and a deployment GitHub Actions workflow for GitHub Pages publishing on pushes to `main`
 
 ## New npm dependencies
 
