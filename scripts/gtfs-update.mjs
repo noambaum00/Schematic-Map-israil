@@ -6,12 +6,14 @@ import Papa from 'papaparse'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { pathToFileURL } from 'node:url'
 
 const GTFS_SOURCE_URL = process.env.GTFS_SOURCE_URL ?? 'https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip'
 const OUTPUT_FILE = process.env.GTFS_OUTPUT_FILE ?? join(process.cwd(), 'public', 'transit_graph.json')
 const REQUIRED_FILES = ['routes.txt', 'trips.txt', 'stop_times.txt', 'stops.txt']
 const OPTIONAL_FILES = ['agency.txt', 'translations.txt']
 const STRIPPED_NAME_PATTERNS = [/\bplatform\b/gi, /\bterminal\b/gi, /\bstation\b/gi, /\bstop\b/gi, /\bbay\b/gi, /מסוף/gi, /רציף/gi]
+const supportedCsvDelimiters = [',', ';']
 const expectedGtfsHeaders = {
   'routes.txt': ['route_id', 'route_type'],
   'stop_times.txt': ['trip_id', 'stop_id', 'stop_sequence'],
@@ -264,19 +266,9 @@ function getTextDecoderSpec(encoding) {
   return decoder
 }
 
-function getCsvDelimiter(text, fileName) {
-  const headerLine = getHeaderLine(stripLeadingBom(text))
-
-  if (fileName === 'translations.txt' && headerLine.includes(';') && !headerLine.includes(',')) {
-    return ';'
-  }
-
-  return ','
-}
-
-function parseCsvHeaderColumns(text, fileName) {
+function parseCsvHeaderColumnsWithDelimiter(text, delimiter) {
   const parsed = Papa.parse(stripLeadingBom(text), {
-    delimiter: getCsvDelimiter(text, fileName),
+    delimiter,
     preview: 1,
     skipEmptyLines: true,
   })
@@ -293,14 +285,13 @@ function matchesExpectedHeaders(fileName, columns) {
 
   if (fileName === 'translations.txt') {
     const hasLanguageColumn = availableHeaders.has('language') || availableHeaders.has('lang')
-    const isTableBasedTranslation =
+    return (
       availableHeaders.has('table_name') &&
       availableHeaders.has('field_name') &&
       availableHeaders.has('translation') &&
       hasLanguageColumn &&
       (availableHeaders.has('record_id') || availableHeaders.has('field_value'))
-    const isRecordBasedTranslation = availableHeaders.has('trans_id') && availableHeaders.has('translation') && hasLanguageColumn
-    return isTableBasedTranslation || isRecordBasedTranslation
+    )
   }
 
   const expectedHeaders = expectedGtfsHeaders[fileName]
@@ -310,6 +301,24 @@ function matchesExpectedHeaders(fileName, columns) {
   }
 
   return expectedHeaders.every((header) => availableHeaders.has(header))
+}
+
+function getCsvDelimiter(text, fileName) {
+  const attempts = supportedCsvDelimiters.map((delimiter) => ({
+    columns: parseCsvHeaderColumnsWithDelimiter(text, delimiter),
+    delimiter,
+  }))
+  const preferredAttempt = attempts.find((attempt) => matchesExpectedHeaders(fileName, attempt.columns))
+
+  if (preferredAttempt) {
+    return preferredAttempt.delimiter
+  }
+
+  return attempts.sort((left, right) => right.columns.length - left.columns.length)[0]?.delimiter ?? ','
+}
+
+function parseCsvHeaderColumns(text, fileName) {
+  return parseCsvHeaderColumnsWithDelimiter(text, getCsvDelimiter(text, fileName))
 }
 
 function isLikelyGtfsCsv(text, fileName) {
@@ -451,7 +460,9 @@ function buildTranslationMap(translations) {
   const translationMap = new Map()
 
   for (const translation of translations) {
-    if (translation.table_name !== 'stops' || translation.field_name !== 'stop_name' || !translation.record_id) {
+    const translationRecordId = translation.record_id || translation.field_value
+
+    if (translation.table_name !== 'stops' || translation.field_name !== 'stop_name' || !translationRecordId) {
       continue
     }
 
@@ -461,9 +472,9 @@ function buildTranslationMap(translations) {
       continue
     }
 
-    const localizedNames = translationMap.get(translation.record_id) ?? {}
+    const localizedNames = translationMap.get(translationRecordId) ?? {}
     localizedNames[language] = translation.translation
-    translationMap.set(translation.record_id, localizedNames)
+    translationMap.set(translationRecordId, localizedNames)
   }
 
   return translationMap
@@ -808,7 +819,11 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error)
-  process.exitCode = 1
-})
+export { buildTranslationMap, decodeGtfsText, getCsvDelimiter, parseCsv, parseExtractedFile }
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error)
+    process.exitCode = 1
+  })
+}
