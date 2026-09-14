@@ -576,6 +576,10 @@ function handleOptionalFileError(fileName, error) {
   console.warn(`Skipping optional ${fileName}: ${error instanceof Error ? error.message : error}`)
 }
 
+function isDecodeFailure(error) {
+  return error instanceof Error && error.message.startsWith('Unable to decode ')
+}
+
 async function parseExtractedFile(extractedFiles, fileName, { required = true } = {}) {
   const filePath = extractedFiles.get(fileName)
 
@@ -588,7 +592,7 @@ async function parseExtractedFile(extractedFiles, fileName, { required = true } 
   try {
     content = decodeGtfsText(await readFile(filePath), fileName)
   } catch (error) {
-    if (!required) {
+    if (!required && isDecodeFailure(error)) {
       handleOptionalFileError(fileName, error)
       return null
     }
