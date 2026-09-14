@@ -407,8 +407,8 @@ function decodeGtfsText(buffer, fileName) {
   )
 }
 
-function validateRequiredGtfsHeaders(fileName, content, delimiter) {
-  if (!Object.hasOwn(expectedGtfsHeaders, fileName)) {
+function validateParsedGtfsHeaders(fileName, content, delimiter) {
+  if (!shouldMatchExpectedHeaders(fileName)) {
     return
   }
 
@@ -690,7 +690,7 @@ async function parseExtractedFile(extractedFiles, fileName, { required = true } 
   }
 
   const delimiter = getCsvDelimiter(content, fileName)
-  validateRequiredGtfsHeaders(fileName, content, delimiter)
+  validateParsedGtfsHeaders(fileName, content, delimiter)
   return parseCsv(content, fileName, delimiter)
 }
 
