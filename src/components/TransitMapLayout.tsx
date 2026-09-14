@@ -428,7 +428,7 @@ export function TransitMapLayout() {
 
   function handleAddPoi() {
     if (!reactFlowInstance || !wrapperRef.current) {
-      setExportError('Canvas not ready.')
+      setExportError('Add POI unavailable.')
       return
     }
 
@@ -479,7 +479,7 @@ export function TransitMapLayout() {
 
   async function handleExportSvg() {
     if (!reactFlowInstance) {
-      setExportError('Canvas not ready.')
+      setExportError('Export unavailable.')
       return
     }
 

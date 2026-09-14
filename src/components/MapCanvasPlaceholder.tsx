@@ -115,7 +115,16 @@ function CanvasInner({
 
       <div className="relative z-10 grid flex-1 gap-5 p-5 lg:grid-cols-[minmax(0,1.75fr)_320px]">
         <div className="overflow-hidden rounded-[1.5rem] border border-blue-100 bg-slate-50">
-          <div ref={wrapperRef} aria-label={activeText.canvasRegionLabel} className="h-[720px] w-full" role="region">
+          <div
+            ref={wrapperRef}
+            aria-describedby="canvas-region-description"
+            aria-label={activeText.canvasRegionLabel}
+            className="h-[720px] w-full"
+            role="region"
+          >
+            <p className="sr-only" id="canvas-region-description">
+              {activeText.canvasRegionDescription}
+            </p>
             <ReactFlow<CanvasNode, CanvasEdge>
               attributionPosition="bottom-left"
               connectionMode={ConnectionMode.Loose}

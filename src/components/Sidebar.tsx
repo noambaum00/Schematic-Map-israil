@@ -163,8 +163,10 @@ export function Sidebar({
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Schematic Map</h1>
           <p className="mt-1 text-sm text-blue-700">{text.resultLabel.replace('{count}', String(routes.length))}</p>
         </div>
-        <div className="grid grid-cols-3 gap-1 rounded-2xl bg-white p-1 shadow-sm">
-          {languages.map((language) => {
+        <fieldset className="min-w-0">
+          <legend className="sr-only">{text.language}</legend>
+          <div className="grid grid-cols-3 gap-1 rounded-2xl bg-white p-1 shadow-sm">
+            {languages.map((language) => {
             const isActive = language === activeLanguage
 
             return (
@@ -182,8 +184,9 @@ export function Sidebar({
                 </span>
               </label>
             )
-          })}
-        </div>
+            })}
+          </div>
+        </fieldset>
       </header>
 
       <section className="space-y-3 rounded-[1.5rem] border border-blue-100 bg-slate-50 p-4">
