@@ -236,7 +236,9 @@ export function TransitMapLayout() {
     const nextRoute = allRoutes.find((route) => route.id === routeId)
     const nextRouteStopIds = new Set(nextRoute?.stops.map((stop) => stop.id) ?? [])
 
-    setTransitNodePositions({})
+    setTransitNodePositions((currentPositions) =>
+      Object.fromEntries(Object.entries(currentPositions).filter(([stopId]) => nextRouteStopIds.has(stopId))),
+    )
     setManualEdges((currentEdges) =>
       currentEdges.filter((edge) => {
         const sourceIsPoi = poiNodes.some((node) => node.id === edge.source)

@@ -118,7 +118,6 @@ export function buildShareableMapUrl(state: ShareableMapState) {
   const [hashPath] = currentHash.split('?')
   const resolvedHashPath = hashPath || '/'
 
-  url.search = ''
   url.hash = `${resolvedHashPath}?state=${encodedState}`
 
   return url.toString()

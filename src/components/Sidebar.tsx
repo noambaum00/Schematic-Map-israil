@@ -91,7 +91,7 @@ export function Sidebar({
         />
         <p className="text-sm text-slate-400">
           {isLoading
-            ? 'Parsing GTFS archive…'
+            ? text.parsingGtfs
             : feed
               ? text.loadedFeedNotice
                   .replace('{fileName}', feed.fileName)

@@ -161,9 +161,9 @@ function CanvasInner({
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">{activeText.routeMetadata}</p>
             {!route ? (
               <>
-                <p className="mt-4 text-sm font-semibold text-white">{isLoading ? 'Parsing GTFS archive…' : emptyStates[activeLanguage].title}</p>
+                <p className="mt-4 text-sm font-semibold text-white">{isLoading ? activeText.parsingGtfs : emptyStates[activeLanguage].title}</p>
                 <p className="mt-3 text-sm text-slate-300">
-                  {isLoading ? 'Reading routes, trips, stop_times, and stops from the uploaded archive.' : emptyStates[activeLanguage].description}
+                  {isLoading ? activeText.readingArchive : emptyStates[activeLanguage].description}
                 </p>
               </>
             ) : (
@@ -171,7 +171,7 @@ function CanvasInner({
                 <li>• {activeText.routeMode}: {route.mode}</li>
                 <li>• {activeText.routeOperator}: {route.operator}</li>
                 <li>• {activeText.tripId}: {route.representativeTripId}</li>
-                <li>• {activeText.headsign}: {route.representativeHeadsign || 'Not provided'}</li>
+                <li>• {activeText.headsign}: {route.representativeHeadsign || activeText.notProvided}</li>
                 <li>• {activeText.wheelchairAccessibleStops}: {route.stops.filter((stop) => stop.wheelchairStatus === 'accessible').length}</li>
                 <li>• {activeText.wheelchairInaccessibleStops}: {route.stops.filter((stop) => stop.wheelchairStatus === 'inaccessible').length}</li>
               </ul>
