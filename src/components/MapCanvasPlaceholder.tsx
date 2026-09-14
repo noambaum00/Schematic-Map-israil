@@ -90,7 +90,7 @@ function CanvasInner({
 
   return (
     <section className="relative flex min-h-[760px] flex-1 flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900/80">
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.12)_1px,transparent_1px)] bg-[size:64px_64px]" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.12)_1px,transparent_1px)] bg-[size:20px_20px]" />
       <div className="absolute inset-x-0 top-0 h-48 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.18),transparent_60%)]" />
 
       <div className="relative z-10 flex items-center justify-between gap-4 border-b border-white/10 px-6 py-5">
@@ -116,7 +116,7 @@ function CanvasInner({
             role="region"
           >
             <p className="sr-only" id="canvas-region-description">
-              Use the interactive graph to inspect GTFS station nodes, add POI nodes, draw manual connections, and export the full viewport as SVG.
+              Use the interactive graph to inspect GTFS station and transfer hub nodes, add POI nodes, draw octilinear manual connections, and export the full viewport as SVG.
             </p>
             <ReactFlow<CanvasNode, CanvasEdge>
               attributionPosition="bottom-left"

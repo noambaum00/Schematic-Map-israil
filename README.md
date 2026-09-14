@@ -39,7 +39,7 @@ Then open the app, upload an official MOT GTFS `.zip` archive, drag stations and
 
 ## GitHub Pages publishing
 
-The repository already includes a GitHub Pages deployment workflow, and production builds are coupled to the repository-specific Vite `base` value in `vite.config.ts`. Local development does not require Pages setup, but publishing requires the repository Pages settings to use GitHub Actions and the `base` value to match the repository name.
+This project now includes a GitHub Pages deployment workflow, and production builds are coupled to the repository-specific Vite `base` value in `vite.config.ts`. Local development does not require Pages setup, but publishing requires the repository Pages settings to use GitHub Actions and the `base` value to match the repository name.
 
 Configured deployment workflow:
 - `.github/workflows/deploy-pages.yml`

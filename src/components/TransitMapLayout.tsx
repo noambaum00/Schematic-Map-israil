@@ -37,9 +37,10 @@ export function TransitMapLayout() {
   const [poiNodes, setPoiNodes] = useState<POICanvasNode[]>([])
   const [manualEdges, setManualEdges] = useState<CanvasEdge[]>([])
   const [transitNodePositions, setTransitNodePositions] = useState<Record<string, XYPosition>>({})
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+  const [selectedPoiId, setSelectedPoiId] = useState<string | null>(null)
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance<CanvasNode, CanvasEdge> | null>(null)
   const latestRequestId = useRef(0)
+  const nodesRef = useRef<CanvasNode[]>([])
   const poiCounterRef = useRef(1)
   const wrapperRef = useRef<HTMLDivElement>(null)
 
@@ -95,10 +96,14 @@ export function TransitMapLayout() {
 
   const edges = useMemo<CanvasEdge[]>(() => [...baseGraph.edges, ...manualEdges], [baseGraph.edges, manualEdges])
 
+  useEffect(() => {
+    nodesRef.current = nodes
+  }, [nodes])
+
   const selectedPoiLabel = useMemo(() => {
-    const selectedNode = nodes.find((node) => node.id === selectedNodeId)
+    const selectedNode = nodes.find((node) => node.id === selectedPoiId)
     return selectedNode?.type === 'poi' ? selectedNode.data.label : ''
-  }, [nodes, selectedNodeId])
+  }, [nodes, selectedPoiId])
 
   useEffect(() => {
     if (!reactFlowInstance || baseGraph.nodes.length === 0) {
@@ -115,7 +120,7 @@ export function TransitMapLayout() {
     setPoiNodes([])
     setManualEdges([])
     setTransitNodePositions({})
-    setSelectedNodeId(null)
+    setSelectedPoiId(null)
     poiCounterRef.current = 1
   }
 
@@ -163,7 +168,7 @@ export function TransitMapLayout() {
   }
 
   function handleNodesChange(changes: Parameters<typeof applyNodeChanges<CanvasNode>>[0]) {
-    const nextNodes = applyNodeChanges(changes, nodes)
+    const nextNodes = applyNodeChanges(changes, nodesRef.current)
     const nextTransitPositions: Record<string, XYPosition> = {}
 
     for (const node of nextNodes) {
@@ -177,11 +182,12 @@ export function TransitMapLayout() {
   }
 
   function handleConnect(connection: Connection) {
-    setManualEdges((currentEdges) => connectCanvasEdge(connection, currentEdges, nodes))
+    setManualEdges((currentEdges) => connectCanvasEdge(connection, currentEdges, nodesRef.current))
   }
 
   function handleSelectionChange({ nodes: selectedNodes }: OnSelectionChangeParams<CanvasNode, CanvasEdge>) {
-    setSelectedNodeId(selectedNodes[0]?.id ?? null)
+    const selectedPoi = selectedNodes.find((node): node is POICanvasNode => node.type === 'poi')
+    setSelectedPoiId(selectedPoi?.id ?? null)
   }
 
   function handleAddPoi() {
@@ -214,13 +220,13 @@ export function TransitMapLayout() {
         type: 'poi',
       },
     ])
-    setSelectedNodeId(poiId)
+    setSelectedPoiId(poiId)
   }
 
   function handlePoiLabelChange(value: string) {
     setPoiNodes((currentNodes) =>
       currentNodes.map((node) => {
-        if (node.id !== selectedNodeId) {
+        if (node.id !== selectedPoiId) {
           return node
         }
 

@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import '@xyflow/react/dist/style.css'
 import './index.css'
 import App from './App.tsx'
-import faviconUrl from '../public/favicon.svg'
+import faviconUrl from './assets/favicon.svg'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
