@@ -165,25 +165,26 @@ export function Sidebar({
         </div>
         <fieldset className="min-w-0">
           <legend className="sr-only">{text.language}</legend>
+          <p className="mb-2 text-xs font-medium text-slate-500">{text.language}</p>
           <div className="grid grid-cols-3 gap-1 rounded-2xl bg-white p-1 shadow-sm">
             {languages.map((language) => {
-            const isActive = language === activeLanguage
+              const isActive = language === activeLanguage
 
-            return (
-              <label key={language} className="block cursor-pointer">
-                <input
-                  checked={isActive}
-                  className="peer sr-only"
-                  name="interface-language"
-                  type="radio"
-                  value={language}
-                  onChange={() => onLanguageChange(language)}
-                />
-                <span className="flex min-w-12 items-center justify-center rounded-xl px-2 py-2 text-xs font-medium text-slate-500 transition peer-checked:bg-blue-600 peer-checked:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-500 hover:text-blue-700">
-                  {language}
-                </span>
-              </label>
-            )
+              return (
+                <label key={language} className="block cursor-pointer">
+                  <input
+                    checked={isActive}
+                    className="peer sr-only"
+                    name="interface-language"
+                    type="radio"
+                    value={language}
+                    onChange={() => onLanguageChange(language)}
+                  />
+                  <span className="flex min-w-12 items-center justify-center rounded-xl px-2 py-2 text-xs font-medium text-slate-500 transition peer-checked:bg-blue-600 peer-checked:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-500 hover:text-blue-700">
+                    {language}
+                  </span>
+                </label>
+              )
             })}
           </div>
         </fieldset>
@@ -253,6 +254,7 @@ export function Sidebar({
           {text.searchRailLightBus}
         </label>
         <input
+          aria-describedby="route-query-status"
           id="route-query"
           className="w-full rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
           placeholder={text.searchPlaceholder}
@@ -260,6 +262,9 @@ export function Sidebar({
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
         />
+        <p aria-live="polite" className="text-sm text-slate-500" id="route-query-status">
+          {text.resultLabel.replace('{count}', String(routes.length))}
+        </p>
         <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
           {routes.map((route) => {
             const isSelected = route.id === selectedRouteId
