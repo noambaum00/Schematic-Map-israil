@@ -2,17 +2,25 @@
 
 A Vite + React + TypeScript app for generating schematic transit views for Israel's public transportation network.
 
-## Phase 2 status
+## Phase 3 status
 
-This phase removes mock route data and replaces it with a real in-browser GTFS ingestion flow.
+This phase upgrades the live GTFS route view into an interactive React Flow canvas.
 
 ### Implemented now
 - upload and parse a real Israel MOT GTFS zip archive in the browser
 - derive live route summaries from `agency.txt`, `routes.txt`, `trips.txt`, `stop_times.txt`, and `stops.txt`
-- search and select real routes after loading a GTFS feed
-- render a live schematic SVG preview for the selected route
+- render the selected route as a React Flow graph with draggable transit station nodes
 - display Israel Railways train-series labels like `2XX` and `4XX` directly on route edges
+- add Point of Interest (POI) nodes at the center of the visible canvas
+- edit the selected POI label from the sidebar
+- manually draw new edges between POI and transit nodes with standard React Flow connections
+- export the full fitted graph as a high-resolution SVG using `html-to-image`
 - configure Vite and GitHub Actions for GitHub Pages deployment
+
+## New npm dependencies
+
+- `@xyflow/react`
+- `html-to-image`
 
 ## How to use
 
@@ -21,7 +29,7 @@ npm install
 npm run dev
 ```
 
-Then open the app and upload an official MOT GTFS `.zip` archive.
+Then open the app, upload an official MOT GTFS `.zip` archive, add POIs from the sidebar, and export the current graph as SVG.
 
 ## GitHub Pages
 
@@ -34,30 +42,15 @@ Deployment workflow:
 
 ## Current GTFS parsing scope
 
-The current Phase 2 parser reads:
-- `agency.txt`
+The current parser reads:
+- `agency.txt` (optional)
 - `routes.txt`
 - `trips.txt`
 - `stop_times.txt`
 - `stops.txt`
 
-It uses the longest available trip pattern per route as the schematic preview source.
+It uses the longest available trip pattern per route as the initial graph source.
 
-## Train number templates
+## Export behavior
 
-For Israel Railways routes, the app scans `route_short_name` and `trip_short_name` for:
-- explicit templates such as `2XX`
-- 3-4 digit train numbers, which are normalized into templates like `2XX` or `4XXX`
-
-The detected template is rendered directly on the line segments of the selected rail route.
-
-## Next steps
-
-Future phases can extend this base with:
-- multi-route overlays
-- octilinear snapping
-- transfer hub clustering
-- accessibility layers
-- pathfinding
-- SVG/PDF export
-- permalink serialization
+Before exporting, the app temporarily calls React Flow fit-to-view behavior so the entire graph is inside the viewport bounds. The export utility then captures `.react-flow__viewport` and triggers an automatic `.svg` download.

@@ -50,21 +50,21 @@ export const architectureSections: ArchitectureSection[] = [
     ],
   },
   {
-    title: 'Live schematic route extraction',
-    summary: 'Generate a route-specific schematic from the best available GTFS trip pattern.',
+    title: 'React Flow canvas',
+    summary: 'Render the selected GTFS route as an editable graph instead of a static SVG preview.',
     bullets: [
-      'Choose a representative trip per route based on stop count and preserve stop order from stop_times.',
-      'Render the selected route as a schematic SVG with segment labels for Israel Railways train series.',
-      'Leave the canvas ready for a future React Flow or D3 replacement once multi-route editing is added.',
+      'Map GTFS stops into transit nodes and route segments into labeled React Flow edges.',
+      'Register a distinct POI node type so user-authored landmarks can be styled and edited independently.',
+      'Support manual drag, connect, selection, and export interactions directly on the graph canvas.',
     ],
   },
   {
-    title: 'Static deployment target',
-    summary: 'Ship the app as a pure static bundle for GitHub Pages hosting.',
+    title: 'Client-side export + Pages hosting',
+    summary: 'Keep collaboration and publishing compatible with a static GitHub Pages deployment.',
     bullets: [
-      'Configure Vite with the repository base path used by GitHub Pages.',
-      'Publish the build artifact through a GitHub Actions Pages workflow.',
-      'Avoid server-only dependencies so the same code works locally and on Pages.',
+      'Use html-to-image to capture the fitted React Flow viewport as a downloadable SVG.',
+      'Preserve the Vite base path required for repository-based GitHub Pages hosting.',
+      'Avoid server-only dependencies so the same build works locally and on Pages.',
     ],
   },
 ]
@@ -79,8 +79,12 @@ export const packageGroups: PackageGroup[] = [
     packages: ['jszip', 'papaparse', 'zod'],
   },
   {
+    category: 'Canvas + export',
+    packages: ['@xyflow/react', 'html-to-image'],
+  },
+  {
     category: 'Next feature slices',
-    packages: ['@xyflow/react', 'zustand', 'nuqs', 'i18next', 'react-i18next', 'jspdf'],
+    packages: ['nuqs', 'i18next', 'react-i18next', 'jspdf'],
   },
 ]
 
@@ -100,7 +104,16 @@ export const algorithmPlans: AlgorithmPlan[] = [
     steps: [
       'Scan rail route and trip short names for existing series tokens or 3-4 digit train numbers.',
       'Normalize matched train numbers into templates by keeping the first digit and replacing the rest with X.',
-      'Render the resulting series string on each segment of the selected rail route in the schematic SVG.',
+      'Render the resulting series string on each segment of the selected rail route in the graph.',
+    ],
+  },
+  {
+    title: 'POI placement + export',
+    goal: 'Create new landmark nodes at the visible canvas center and export the full graph without cropping.',
+    steps: [
+      'Convert the center of the visible React Flow pane into flow coordinates before creating a POI node.',
+      'Let React Flow handle manual onConnect edges between POI and GTFS nodes.',
+      'Fit the graph into view before calling html-to-image on `.react-flow__viewport` so exports include the whole canvas.',
     ],
   },
 ]

@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@xyflow/react": "^12.11.6",
+    "html-to-image": "^1.11.13",
     "jszip": "^3.10.2",
     "papaparse": "^5.7.0",
     "react": "^19.2.8",
