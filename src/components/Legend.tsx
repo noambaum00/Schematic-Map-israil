@@ -17,7 +17,11 @@ export function Legend({ activeLanguage, route }: LegendProps) {
   }
 
   return (
-    <aside className="pointer-events-none absolute bottom-6 left-6 z-20 w-72 rounded-[1.5rem] border border-white/10 bg-slate-950/92 p-4 shadow-2xl backdrop-blur">
+    <aside
+      aria-label={text.legendTitle}
+      className="pointer-events-none absolute bottom-6 left-6 z-20 w-72 rounded-[1.5rem] border border-white/10 bg-slate-950/92 p-4 shadow-2xl backdrop-blur"
+      role="note"
+    >
       <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">{text.legendTitle}</p>
       <div className="mt-4 space-y-4">
         <div>

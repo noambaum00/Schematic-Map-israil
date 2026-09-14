@@ -181,9 +181,9 @@ function CanvasInner({
           </article>
 
           <article className="rounded-[1.75rem] border border-white/10 bg-slate-950/60 p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">Canvas tips</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">{activeText.canvasTips}</p>
             <ul className="mt-4 space-y-3 text-sm text-slate-300">
-              <li>• Drag GTFS stations, transfer hubs, or POI nodes with 20px grid snapping.</li>
+              <li>• {activeText.dragWithGrid}</li>
               <li>• {activeText.drawLinks}</li>
               <li>• {activeText.editPoi}</li>
             </ul>
@@ -201,7 +201,9 @@ function CanvasInner({
           {route?.trainTemplateLabel ? (
             <article className="rounded-[1.75rem] border border-cyan-400/20 bg-cyan-400/10 p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-100">{activeText.trainNumberTemplate}</p>
-              <p className="mt-4 text-sm text-cyan-50">Rendered on the longest octilinear segment: {route.trainTemplateLabel}</p>
+              <p className="mt-4 text-sm text-cyan-50">
+                {activeText.trainTemplateRendered.replace('{label}', route.trainTemplateLabel)}
+              </p>
             </article>
           ) : null}
         </div>

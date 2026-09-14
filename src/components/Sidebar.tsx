@@ -280,7 +280,7 @@ export function Sidebar({
       </section>
 
       <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
-        <h2 className="text-sm font-semibold text-white">Algorithms</h2>
+        <h2 className="text-sm font-semibold text-white">{text.algorithms}</h2>
         {algorithmPlans.map((plan) => (
           <article key={plan.title} className="space-y-2 rounded-2xl border border-white/10 bg-slate-950/40 p-3">
             <div>
@@ -300,7 +300,7 @@ export function Sidebar({
       </section>
 
       <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
-        <h2 className="text-sm font-semibold text-white">Installed npm packages</h2>
+        <h2 className="text-sm font-semibold text-white">{text.installedPackages}</h2>
         {packageGroups.map((group) => (
           <article key={group.category} className="space-y-2">
             <h3 className="text-sm font-medium text-cyan-100">{group.category}</h3>
@@ -317,8 +317,8 @@ export function Sidebar({
 
       <section className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white">Operator colors</h2>
-          <span className="text-xs text-slate-400">Live route styling</span>
+          <h2 className="text-sm font-semibold text-white">{text.operatorColorsHeading}</h2>
+          <span className="text-xs text-slate-400">{text.liveRouteStyling}</span>
         </div>
         <div className="space-y-3">
           {operatorColors.map((operator) => (

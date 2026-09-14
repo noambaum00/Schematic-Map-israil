@@ -207,6 +207,9 @@ export function TransitMapLayout() {
               return sourceIsPoi !== targetIsPoi
             })
             .map((edge, index) => ({
+              data: {
+                isManual: true,
+              },
               id: `shared-edge-${edge.source}-${edge.target}-${index + 1}`,
               source: edge.source,
               style: { stroke: '#f8fafc', strokeDasharray: '10 6', strokeWidth: 3 },
