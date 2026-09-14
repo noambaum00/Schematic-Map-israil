@@ -13,7 +13,6 @@ const REQUIRED_FILES = ['routes.txt', 'trips.txt', 'stop_times.txt', 'stops.txt'
 const OPTIONAL_FILES = ['agency.txt', 'translations.txt']
 const STRIPPED_NAME_PATTERNS = [/\bplatform\b/gi, /\bterminal\b/gi, /\bstation\b/gi, /\bstop\b/gi, /\bbay\b/gi, /מסוף/gi, /רציף/gi]
 const expectedGtfsHeaders = {
-  'agency.txt': ['agency_name'],
   'routes.txt': ['route_id', 'route_type'],
   'stop_times.txt': ['trip_id', 'stop_id', 'stop_sequence'],
   'stops.txt': ['stop_id', 'stop_name', 'stop_lat', 'stop_lon'],
