@@ -273,7 +273,7 @@ function parseCsvHeaderColumnsWithDelimiter(text, delimiter) {
     return []
   }
 
-  return Array.isArray(parsed.data[0]) ? parsed.data[0].map((value) => String(value).trim()).filter(Boolean) : []
+  return Array.isArray(parsed.data[0]) ? parsed.data[0].map((value) => stripLeadingBom(String(value).trim())).filter(Boolean) : []
 }
 
 function matchesExpectedHeaders(fileName, columns) {
