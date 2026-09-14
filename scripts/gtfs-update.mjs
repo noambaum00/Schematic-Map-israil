@@ -27,6 +27,8 @@ const textDecoderSpecs = [
   { encoding: 'windows-1252', options: { fatal: true } },
 ]
 
+class GtfsDecodeError extends Error {}
+
 function normalizeWhitespace(value) {
   return value.replace(/\s+/g, ' ').trim()
 }
@@ -279,7 +281,7 @@ function isLikelyGtfsCsv(text, fileName) {
   const expectedHeaders = expectedGtfsHeaders[fileName]
 
   if (!expectedHeaders) {
-    return columns.length >= 2
+    return columns.length >= 1
   }
 
   const availableHeaders = new Set(columns)
@@ -353,7 +355,7 @@ function decodeGtfsText(buffer, fileName) {
     }
   }
 
-  throw new Error(`Unable to decode ${fileName}. Tried: ${attemptedEncodings.join(', ')}`)
+  throw new GtfsDecodeError(`Unable to decode ${fileName}. Tried: ${attemptedEncodings.join(', ')}`)
 }
 
 function parseCsv(content, fileName) {
@@ -592,7 +594,7 @@ function handleOptionalFileError(fileName, error) {
 }
 
 function isDecodeFailure(error) {
-  return error instanceof Error && error.message.startsWith('Unable to decode ')
+  return error instanceof GtfsDecodeError
 }
 
 async function parseExtractedFile(extractedFiles, fileName, { required = true } = {}) {
