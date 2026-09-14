@@ -274,8 +274,8 @@ export function TransitMapLayout() {
       })
       const shareUrl = buildShareableMapUrl(shareState)
 
-      await navigator.clipboard.writeText(shareUrl)
       window.history.replaceState(null, '', shareUrl)
+      await navigator.clipboard.writeText(shareUrl)
       setShareMessage(text.shareCopied)
     } catch {
       setShareError(text.shareCopyFailed)

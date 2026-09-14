@@ -62,7 +62,7 @@ export function normalizeBaseStopName(name: string) {
     normalized = normalized.replace(pattern, ' ')
   }
 
-  normalized = normalized.replace(/[[\](){}'".,_/-]+/g, ' ')
+  normalized = normalized.replace(/[()[\]{}'"._,\-/]+/g, ' ')
   return normalizeWhitespace(normalized)
 }
 
