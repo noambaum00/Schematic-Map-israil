@@ -290,7 +290,8 @@ function getPreferredTextDecoders(buffer) {
   const leadingBytes = buffer.subarray(0, 4)
 
   if (leadingBytes[0] === 0xef && leadingBytes[1] === 0xbb && leadingBytes[2] === 0xbf) {
-    return textDecoderSpecs
+    const preferredDecoder = getTextDecoderSpec('utf-8')
+    return [preferredDecoder, ...textDecoderSpecs.filter((decoder) => decoder.encoding !== preferredDecoder.encoding)]
   }
 
   if (leadingBytes[0] === 0xff && leadingBytes[1] === 0xfe) {
