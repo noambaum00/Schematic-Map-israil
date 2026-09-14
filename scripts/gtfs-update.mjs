@@ -248,10 +248,6 @@ function clusterStopsIntoTransferHubs(stops, mergeRadiusMeters = 200) {
   return { hubNodes, stopToHubMap }
 }
 
-function getHeaderLine(text) {
-  return stripLeadingBom(text).split(/\r?\n/u, 1)[0]?.trim() ?? ''
-}
-
 function stripLeadingBom(text) {
   return text.replace(/^\uFEFF/, '')
 }
@@ -319,17 +315,6 @@ function getCsvDelimiter(text, fileName) {
 
 function parseCsvHeaderColumns(text, fileName) {
   return parseCsvHeaderColumnsWithDelimiter(text, getCsvDelimiter(text, fileName))
-}
-
-function isLikelyGtfsCsv(text, fileName) {
-  const headerLine = getHeaderLine(text)
-
-  if (!headerLine || headerLine.includes('\u0000')) {
-    return false
-  }
-
-  const columns = parseCsvHeaderColumns(text, fileName)
-  return matchesExpectedHeaders(fileName, columns)
 }
 
 function getPreferredTextDecoders(buffer) {
