@@ -167,10 +167,11 @@ export function TransitMapLayout() {
       const sharedState = initialSharedState.state
       const sharedRouteId = sharedState?.selectedRouteIds.find((routeId) => parsedFeed.routes.some((route) => route.id === routeId)) ?? null
       const nextSelectedRouteId = sharedRouteId ?? parsedFeed.routes[0]?.id ?? null
+      const canRestoreSharedState = !sharedState || sharedState.selectedRouteIds.length === 0 || Boolean(sharedRouteId)
 
       setSelectedRouteId(nextSelectedRouteId)
 
-      if (sharedState && !hasAppliedSharedStateRef.current) {
+      if (sharedState && canRestoreSharedState && !hasAppliedSharedStateRef.current) {
         setLanguage(sharedState.language)
         const sharedRoutes = parsedFeed.routes.filter((route) => sharedState.selectedRouteIds.includes(route.id))
         const selectedRoute = parsedFeed.routes.find((route) => route.id === nextSelectedRouteId)

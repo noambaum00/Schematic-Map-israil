@@ -530,10 +530,6 @@ async function buildTransitGraphPayload(extractedFiles) {
     stopTimesByTrip.set(stopTime.trip_id, tripStops)
   }
 
-  for (const tripStops of stopTimesByTrip.values()) {
-    tripStops.sort((left, right) => Number(left.stop_sequence ?? 0) - Number(right.stop_sequence ?? 0))
-  }
-
   const parsedRoutes = routes
     .map((route) => {
       if (!route.route_id) {
@@ -551,7 +547,9 @@ async function buildTransitGraphPayload(extractedFiles) {
       let representativeStopIds = []
 
       for (const trip of routeTrips) {
-        const orderedStops = (stopTimesByTrip.get(trip.trip_id) ?? []).map((stopTime) => stopTime.stop_id)
+        const orderedStops = [...(stopTimesByTrip.get(trip.trip_id) ?? [])]
+          .sort((left, right) => Number(left.stop_sequence ?? 0) - Number(right.stop_sequence ?? 0))
+          .map((stopTime) => stopTime.stop_id)
 
         if (orderedStops.length > representativeStopIds.length) {
           representativeTrip = trip

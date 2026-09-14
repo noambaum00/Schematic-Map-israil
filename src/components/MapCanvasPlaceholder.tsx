@@ -163,10 +163,10 @@ function CanvasInner({
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600">{activeText.routeMetadata}</p>
             {!route ? (
               loadError ? (
-                <>
-                  <p className="mt-4 text-sm font-semibold text-red-600">{activeText.bundledFeedUnavailable}</p>
+                <div aria-live="assertive" className="mt-4" role="alert">
+                  <p className="text-sm font-semibold text-red-600">{activeText.bundledFeedUnavailable}</p>
                   <p className="mt-3 text-sm text-gray-600">{loadError}</p>
-                </>
+                </div>
               ) : (
                 <>
                   <p className="mt-4 text-sm font-semibold text-gray-900">{isLoading ? activeText.parsingGtfs : emptyStates[activeLanguage].title}</p>
