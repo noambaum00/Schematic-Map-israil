@@ -24,7 +24,7 @@ This phase upgrades the React Flow rendering to look more like a classic schemat
 
 ## New npm dependencies
 
-- no new packages are required for hub clustering
+- no new packages are required for the Phase 5 schematic styling work
 - optional future alternative: `@turf/distance` or `geolib` if you prefer external geospatial helpers
 - existing canvas/export packages remain `@xyflow/react` and `html-to-image`
 
@@ -39,7 +39,7 @@ Then open the app, upload an official MOT GTFS `.zip` archive, drag stations and
 
 ## GitHub Pages publishing
 
-This project now includes a GitHub Pages deployment workflow, and production builds are coupled to the repository-specific Vite `base` value in `vite.config.ts`. Local development does not require Pages setup, but publishing requires the repository Pages settings to use GitHub Actions and the `base` value to match the repository name.
+This project now includes a GitHub Pages deployment workflow, and production builds are coupled to the repository-specific Vite `base` value in `vite.config.ts`. The current production base is hard-coded to `/Schematic-Map-israil/`, so Pages deployment expects the exact repository slug `noambaum00/Schematic-Map-israil`; if the slug changes, update `vite.config.ts` before publishing. Local development does not require Pages setup.
 
 Configured deployment workflow:
 - `.github/workflows/deploy-pages.yml`
@@ -49,7 +49,7 @@ Configured deployment workflow:
 Repository settings required:
 - open **Settings → Pages** in GitHub
 - set **Source** to **GitHub Actions**
-- keep the repository name aligned with the Vite `base` value in `vite.config.ts`, or change `vite.config.ts` before using a different production hosting path
+- keep the repository slug aligned with the Vite `base` value `/Schematic-Map-israil/`, or change `vite.config.ts` before using a different production hosting path
 
 ## Current GTFS parsing scope
 

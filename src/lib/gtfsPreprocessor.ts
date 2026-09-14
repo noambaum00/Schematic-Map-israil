@@ -262,7 +262,7 @@ export function remapEdgesToHubs(edges: HubEdge[], stopToHubMap: Record<string, 
   for (const edge of edges) {
     const remappedSource = stopToHubMap[edge.source] ?? edge.source
     const remappedTarget = stopToHubMap[edge.target] ?? edge.target
-    const pairKey = `${remappedSource}->${remappedTarget}`
+    const pairKey = [remappedSource, remappedTarget].sort().join('<->')
 
     if (remappedSource === remappedTarget || seenPairs.has(pairKey)) {
       continue
