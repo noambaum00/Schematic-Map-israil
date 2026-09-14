@@ -64,7 +64,7 @@ It uses the longest available trip pattern per route as the initial graph source
 
 ## Export behavior
 
-Before exporting, the app temporarily calls React Flow fit-to-view behavior so the entire graph is inside the viewport bounds. The export utility then captures `.react-flow__viewport` and triggers an automatic `.svg` download.
+Before exporting, the app temporarily calls React Flow fit-to-view behavior so the entire graph is inside the viewport bounds. The export utility then captures `.react-flow` so both the graph and edge-label overlays are included, and triggers an automatic `.svg` download.
 
 ## Schematic rendering behavior
 

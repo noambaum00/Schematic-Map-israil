@@ -114,7 +114,7 @@ export const algorithmPlans: AlgorithmPlan[] = [
     steps: [
       'Convert the center of the visible React Flow pane into flow coordinates before creating a POI node.',
       'Let React Flow handle manual onConnect edges between POI and GTFS nodes.',
-      'Fit the graph into view before calling html-to-image on `.react-flow__viewport` so exports include the whole canvas.',
+      'Fit the graph into view before calling html-to-image on `.react-flow` so exports include the whole canvas and edge labels.',
     ],
   },
   {

@@ -54,15 +54,25 @@ export function buildSchematicPath(sourceX: number, sourceY: number, targetX: nu
   }
 
   points.push(end)
+  const path = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
 
   const segments = points.slice(1).map<Segment>((point, index) => ({
     end: point,
     length: getSegmentLength(points[index], point),
     start: points[index],
   }))
+
+  if (segments.length === 0) {
+    return {
+      labelX: sourceX,
+      labelY: sourceY,
+      path,
+      segments,
+    }
+  }
+
   const labelSegment = segments.reduce((longest, segment) => (segment.length > longest.length ? segment : longest), segments[0]!)
   const labelPosition = getMidpoint(labelSegment.start, labelSegment.end)
-  const path = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
 
   return {
     labelX: labelPosition.x,
