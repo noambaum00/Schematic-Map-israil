@@ -383,9 +383,9 @@ function decodeGtfsText(buffer, fileName) {
   throw new GtfsDecodeError(`Unable to decode ${fileName}. Tried: ${attemptedEncodings.join(', ')}`)
 }
 
-function parseCsv(content, fileName) {
+function parseCsv(content, fileName, delimiter = getCsvDelimiter(content, fileName)) {
   const parsed = Papa.parse(stripLeadingBom(content), {
-    delimiter: getCsvDelimiter(content, fileName),
+    delimiter,
     header: true,
     skipEmptyLines: true,
     transformHeader: (header) => header.trim(),
@@ -653,7 +653,8 @@ async function parseExtractedFile(extractedFiles, fileName, { required = true } 
     throw error
   }
 
-  return parseCsv(content, fileName)
+  const delimiter = getCsvDelimiter(content, fileName)
+  return parseCsv(content, fileName, delimiter)
 }
 
 async function buildTransitGraphPayload(extractedFiles) {
