@@ -289,6 +289,30 @@ function parseCsvHeaderColumns(text, fileName) {
   return Array.isArray(parsed.data[0]) ? parsed.data[0].map((value) => String(value).trim()).filter(Boolean) : []
 }
 
+function matchesExpectedHeaders(fileName, columns) {
+  const availableHeaders = new Set(columns)
+
+  if (fileName === 'translations.txt') {
+    const hasLanguageColumn = availableHeaders.has('language') || availableHeaders.has('lang')
+    const isTableBasedTranslation =
+      availableHeaders.has('table_name') &&
+      availableHeaders.has('field_name') &&
+      availableHeaders.has('translation') &&
+      hasLanguageColumn &&
+      (availableHeaders.has('record_id') || availableHeaders.has('field_value'))
+    const isRecordBasedTranslation = availableHeaders.has('trans_id') && availableHeaders.has('translation') && hasLanguageColumn
+    return isTableBasedTranslation || isRecordBasedTranslation
+  }
+
+  const expectedHeaders = expectedGtfsHeaders[fileName]
+
+  if (!expectedHeaders) {
+    return availableHeaders.size >= 1
+  }
+
+  return expectedHeaders.every((header) => availableHeaders.has(header))
+}
+
 function isLikelyGtfsCsv(text, fileName) {
   const headerLine = getHeaderLine(text)
 
@@ -297,14 +321,7 @@ function isLikelyGtfsCsv(text, fileName) {
   }
 
   const columns = parseCsvHeaderColumns(text, fileName)
-  const expectedHeaders = expectedGtfsHeaders[fileName]
-
-  if (!expectedHeaders) {
-    return columns.length >= 1
-  }
-
-  const availableHeaders = new Set(columns)
-  return expectedHeaders.every((header) => availableHeaders.has(header))
+  return matchesExpectedHeaders(fileName, columns)
 }
 
 function getPreferredTextDecoders(buffer) {
