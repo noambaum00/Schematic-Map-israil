@@ -511,9 +511,7 @@ function decodeGtfsText(buffer, fileName) {
   }
 
   const attemptsSummary = attemptedEncodings.join(', ') || 'no decoders produced usable text'
-  throw new GtfsDecodeError(
-    process.env.GTFS_DEBUG_DECODING === '1' ? `Unable to decode ${fileName}. Tried: ${attemptsSummary}` : `Unable to decode ${fileName}.`
-  )
+  throw new GtfsDecodeError(`Unable to decode ${fileName}. Tried: ${attemptsSummary}`)
 }
 
 function validateParsedGtfsHeaders(fileName, content, delimiter) {
