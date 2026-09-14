@@ -17,6 +17,8 @@ export function SchematicEdge({
 }: EdgeProps<CanvasEdge>) {
   const { labelX, labelY, path } = buildSchematicPath(sourceX, sourceY, targetX, targetY)
   const isManual = data?.isManual
+  const stroke = data?.customColor ?? style?.stroke
+  const strokeWidth = data?.customStrokeWidth ?? style?.strokeWidth
 
   return (
     <>
@@ -25,9 +27,11 @@ export function SchematicEdge({
         markerEnd={markerEnd}
         path={path}
         style={{
+          ...style,
+          stroke,
           strokeLinecap: 'round',
           strokeLinejoin: 'round',
-          ...style,
+          strokeWidth,
         }}
       />
       {typeof label === 'string' && label.length > 0 ? (

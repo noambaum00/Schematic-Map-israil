@@ -1,14 +1,29 @@
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string'
 import { z } from 'zod'
 
-import type { CanvasEdge, POICanvasNode } from './canvasGraph'
+import { edgeRoutingStyles, type CanvasEdge, type EdgeCustomization, type EdgeRoutingStyle, type POICanvasNode } from './canvasGraph'
 import type { TransitLanguage } from './gtfs'
 
+const edgeCustomizationSchema = z.object({
+  customColor: z.string().min(1).optional(),
+  customStrokeWidth: z.number().min(1).max(15).optional(),
+})
+
 const shareableMapStateSchema = z.object({
-  version: z.literal(1),
+  version: z.union([z.literal(1), z.literal(2)]),
+  edgeCustomizations: z
+    .array(
+      z.object({
+        ...edgeCustomizationSchema.shape,
+        id: z.string().min(1),
+      }),
+    )
+    .default([]),
+  globalEdgeStyle: z.enum(edgeRoutingStyles).default('schematic'),
   language: z.enum(['English', 'עברית', 'العربية']),
   manualEdges: z.array(
     z.object({
+      ...edgeCustomizationSchema.shape,
       source: z.string().min(1),
       target: z.string().min(1),
     }),
@@ -81,12 +96,16 @@ export function readSharedStateFromUrl(): ReadSharedStateResult {
 }
 
 export function buildShareableMapState({
+  edgeCustomizations,
+  globalEdgeStyle,
   language,
   manualEdges,
   networkNodePositions,
   poiNodes,
   selectedRouteIds,
 }: {
+  edgeCustomizations: Record<string, EdgeCustomization>
+  globalEdgeStyle: EdgeRoutingStyle
   language: TransitLanguage
   manualEdges: CanvasEdge[]
   networkNodePositions: Record<string, { x: number; y: number }>
@@ -94,9 +113,16 @@ export function buildShareableMapState({
   selectedRouteIds: string[]
 }): ShareableMapState {
   return {
-    version: 1,
+    version: 2,
+    edgeCustomizations: Object.entries(edgeCustomizations).map(([id, customization]) => ({
+      ...customization,
+      id,
+    })),
+    globalEdgeStyle,
     language,
     manualEdges: manualEdges.map((edge) => ({
+      customColor: edge.data?.customColor,
+      customStrokeWidth: edge.data?.customStrokeWidth,
       source: edge.source,
       target: edge.target,
     })),

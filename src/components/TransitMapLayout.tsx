@@ -8,8 +8,8 @@ import {
 } from '@xyflow/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import type { CanvasEdge, CanvasNode, POICanvasNode } from '../lib/canvasGraph'
-import { buildTransitGraph, connectCanvasEdge } from '../lib/canvasGraph'
+import type { CanvasEdge, CanvasNode, EdgeCustomization, EdgeRoutingStyle, POICanvasNode } from '../lib/canvasGraph'
+import { applyEdgePresentation, buildTransitGraph, connectCanvasEdge } from '../lib/canvasGraph'
 import { exportFlowAsSvg } from '../lib/exportFlowAsSvg'
 import type { ParsedFeed, ParsedRoute, TransitLanguage } from '../lib/gtfs'
 import { parseGtfsArchive } from '../lib/gtfs'
@@ -35,7 +35,10 @@ export function TransitMapLayout() {
   const [shareError, setShareError] = useState<string | null>(null)
   const [poiNodes, setPoiNodes] = useState<POICanvasNode[]>([])
   const [manualEdges, setManualEdges] = useState<CanvasEdge[]>([])
+  const [routeEdgeCustomizations, setRouteEdgeCustomizations] = useState<Record<string, EdgeCustomization>>({})
+  const [globalEdgeStyle, setGlobalEdgeStyle] = useState<EdgeRoutingStyle>(initialSharedState.state?.globalEdgeStyle ?? 'schematic')
   const [transitNodePositions, setTransitNodePositions] = useState<Record<string, XYPosition>>({})
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const [selectedPoiId, setSelectedPoiId] = useState<string | null>(null)
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance<CanvasNode, CanvasEdge> | null>(null)
   const latestRequestId = useRef(0)
@@ -96,7 +99,24 @@ export function TransitMapLayout() {
     return [...transitNodes, ...localizedPoiNodes]
   }, [baseGraph.nodes, language, poiNodes, transitNodePositions])
 
-  const edges = useMemo<CanvasEdge[]>(() => [...baseGraph.edges, ...manualEdges], [baseGraph.edges, manualEdges])
+  const edges = useMemo<CanvasEdge[]>(
+    () => [
+      ...baseGraph.edges.map((edge) =>
+        applyEdgePresentation(
+          {
+            ...edge,
+            data: {
+              ...edge.data,
+              ...routeEdgeCustomizations[edge.id],
+            },
+          },
+          globalEdgeStyle,
+        ),
+      ),
+      ...manualEdges.map((edge) => applyEdgePresentation(edge, globalEdgeStyle)),
+    ],
+    [baseGraph.edges, globalEdgeStyle, manualEdges, routeEdgeCustomizations],
+  )
 
   useEffect(() => {
     nodesRef.current = nodes
@@ -106,6 +126,7 @@ export function TransitMapLayout() {
     const selectedNode = nodes.find((node) => node.id === selectedPoiId)
     return selectedNode?.type === 'poi' ? selectedNode.data.label : ''
   }, [nodes, selectedPoiId])
+  const selectedEdge = useMemo(() => edges.find((edge) => edge.id === selectedEdgeId) ?? null, [edges, selectedEdgeId])
 
   useEffect(() => {
     document.documentElement.dir = getDirection(language)
@@ -139,8 +160,10 @@ export function TransitMapLayout() {
 
   function resetCanvasState() {
     hasAppliedSharedStateRef.current = false
+    setRouteEdgeCustomizations({})
     setPoiNodes([])
     setManualEdges([])
+    setSelectedEdgeId(null)
     setTransitNodePositions({})
     setSelectedPoiId(null)
     poiCounterRef.current = 1
@@ -174,6 +197,9 @@ export function TransitMapLayout() {
 
       if (sharedState && !hasAppliedSharedStateRef.current) {
         const selectedRoute = parsedFeed.routes.find((route) => route.id === nextSelectedRouteId)
+        const restoredEdgeCustomizations = Object.fromEntries(
+          sharedState.edgeCustomizations.map(({ id, ...customization }) => [id, customization]),
+        )
         const restoredPoiNodes: POICanvasNode[] = sharedState.poiNodes.map((node) => ({
           data: {
             direction: getDirection(language),
@@ -194,6 +220,8 @@ export function TransitMapLayout() {
         const highestPoiIndex = restoredPoiIdNumbers.length > 0 ? Math.max(...restoredPoiIdNumbers) : 0
 
         setTransitNodePositions(sharedState.nodePositions)
+        setRouteEdgeCustomizations(restoredEdgeCustomizations)
+        setGlobalEdgeStyle(sharedState.globalEdgeStyle)
         setPoiNodes(restoredPoiNodes)
         setManualEdges(
           sharedState.manualEdges
@@ -209,11 +237,17 @@ export function TransitMapLayout() {
             })
             .map((edge, index) => ({
               data: {
+                customColor: edge.customColor,
+                customStrokeWidth: edge.customStrokeWidth,
                 isManual: true,
               },
               id: `shared-edge-${edge.source}-${edge.target}-${index + 1}`,
               source: edge.source,
-              style: { stroke: '#f8fafc', strokeDasharray: '10 6', strokeWidth: 3 },
+              style: {
+                stroke: edge.customColor ?? '#f8fafc',
+                strokeDasharray: '10 6',
+                strokeWidth: edge.customStrokeWidth ?? 3,
+              },
               target: edge.target,
               type: 'schematic',
             })),
@@ -270,6 +304,14 @@ export function TransitMapLayout() {
           return positions
         }, {})
       const shareState = buildShareableMapState({
+        edgeCustomizations: Object.fromEntries(
+          Object.entries(routeEdgeCustomizations).filter(
+            ([edgeId, customization]) =>
+              baseGraph.edges.some((edge) => edge.id === edgeId) &&
+              (Boolean(customization.customColor) || typeof customization.customStrokeWidth === 'number'),
+          ),
+        ),
+        globalEdgeStyle,
         language,
         manualEdges,
         networkNodePositions,
@@ -306,9 +348,57 @@ export function TransitMapLayout() {
     setManualEdges((currentEdges) => connectCanvasEdge(connection, currentEdges, nodesRef.current))
   }
 
-  function handleSelectionChange({ nodes: selectedNodes }: OnSelectionChangeParams<CanvasNode, CanvasEdge>) {
+  function handleSelectionChange({ edges: selectedEdges, nodes: selectedNodes }: OnSelectionChangeParams<CanvasNode, CanvasEdge>) {
+    setSelectedEdgeId(selectedEdges[0]?.id ?? null)
     const selectedPoi = selectedNodes.find((node): node is POICanvasNode => node.type === 'poi')
     setSelectedPoiId(selectedPoi?.id ?? null)
+  }
+
+  function updateSelectedEdgeCustomization(nextCustomization: EdgeCustomization) {
+    if (!selectedEdge) {
+      return
+    }
+
+    if (selectedEdge.data?.isManual) {
+      setManualEdges((currentEdges) =>
+        currentEdges.map((edge) => {
+          if (edge.id !== selectedEdge.id) {
+            return edge
+          }
+
+          return {
+            ...edge,
+            data: {
+              ...edge.data,
+              ...nextCustomization,
+            },
+            style: {
+              ...edge.style,
+              stroke: nextCustomization.customColor ?? edge.data?.customColor ?? edge.style?.stroke ?? '#f8fafc',
+              strokeWidth:
+                nextCustomization.customStrokeWidth ?? edge.data?.customStrokeWidth ?? edge.style?.strokeWidth ?? 3,
+            },
+          }
+        }),
+      )
+      return
+    }
+
+    setRouteEdgeCustomizations((currentCustomizations) => ({
+      ...currentCustomizations,
+      [selectedEdge.id]: {
+        ...currentCustomizations[selectedEdge.id],
+        ...nextCustomization,
+      },
+    }))
+  }
+
+  function handleEdgeColorChange(customColor: string) {
+    updateSelectedEdgeCustomization({ customColor })
+  }
+
+  function handleEdgeStrokeWidthChange(customStrokeWidth: number) {
+    updateSelectedEdgeCustomization({ customStrokeWidth })
   }
 
   function handleAddPoi() {
@@ -399,6 +489,8 @@ export function TransitMapLayout() {
           isSharing={isSharing}
           isLoading={isLoading}
           loadError={loadError}
+          globalEdgeStyle={globalEdgeStyle}
+          selectedEdge={selectedEdge}
           poiLabel={selectedPoiLabel}
           query={query}
           routes={filteredRoutes}
@@ -406,8 +498,11 @@ export function TransitMapLayout() {
           shareError={shareError}
           shareMessage={shareMessage ?? (initialSharedState.state && !feed ? text.loadFeedToRestoreSharedMap : null)}
           onAddPoi={handleAddPoi}
+          onEdgeColorChange={handleEdgeColorChange}
+          onEdgeStrokeWidthChange={handleEdgeStrokeWidthChange}
           onExportSvg={handleExportSvg}
           onFileSelected={handleFileSelected}
+          onGlobalEdgeStyleChange={setGlobalEdgeStyle}
           onLanguageChange={setLanguage}
           onPoiLabelChange={handlePoiLabelChange}
           onQueryChange={setQuery}

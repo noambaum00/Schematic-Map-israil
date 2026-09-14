@@ -1,18 +1,23 @@
 import type { ParsedFeed, ParsedRoute, TransitLanguage } from '../lib/gtfs'
 import { algorithmPlans, architectureSections, operatorColors, packageGroups } from '../data/transitPlan'
+import type { CanvasEdge, EdgeRoutingStyle } from '../lib/canvasGraph'
 import { interfaceText } from '../lib/uiText'
 
 type SidebarProps = {
   activeLanguage: TransitLanguage
   exportError: string | null
   feed: ParsedFeed | null
+  globalEdgeStyle: EdgeRoutingStyle
   isExporting: boolean
   isSharing: boolean
   isLoading: boolean
   loadError: string | null
   onAddPoi: () => void
+  onEdgeColorChange: (color: string) => void
+  onEdgeStrokeWidthChange: (strokeWidth: number) => void
   onExportSvg: () => void
   onFileSelected: (file: File | null) => void
+  onGlobalEdgeStyleChange: (style: EdgeRoutingStyle) => void
   onLanguageChange: (language: TransitLanguage) => void
   onPoiLabelChange: (value: string) => void
   onRouteSelect: (routeId: string) => void
@@ -21,24 +26,31 @@ type SidebarProps = {
   query: string
   routes: ParsedRoute[]
   selectedRouteId: string | null
+  selectedEdge: CanvasEdge | null
   shareError: string | null
   shareMessage: string | null
   onQueryChange: (value: string) => void
 }
 
 const languages = ['English', 'עברית', 'العربية'] as const
+const edgeColorPalette = ['#0033A0', '#E31837', '#007A33', '#FF7900', '#00AEEF', '#f8fafc', '#f59e0b', '#a855f7'] as const
+const edgeStyleOptions: EdgeRoutingStyle[] = ['schematic', 'default', 'smoothstep', 'straight']
 
 export function Sidebar({
   activeLanguage,
   exportError,
   feed,
+  globalEdgeStyle,
   isExporting,
   isSharing,
   isLoading,
   loadError,
   onAddPoi,
+  onEdgeColorChange,
+  onEdgeStrokeWidthChange,
   onExportSvg,
   onFileSelected,
+  onGlobalEdgeStyleChange,
   onLanguageChange,
   onPoiLabelChange,
   onRouteSelect,
@@ -47,6 +59,7 @@ export function Sidebar({
   query,
   routes,
   selectedRouteId,
+  selectedEdge,
   shareError,
   shareMessage,
   onQueryChange,
@@ -57,6 +70,11 @@ export function Sidebar({
       ? `${routes.length} route${routes.length === 1 ? '' : 's'} shown from the loaded GTFS feed`
       : text.resultLabel.replace('{count}', String(routes.length))
   const hasSelectedPoi = poiLabel.length > 0
+  const selectedEdgeColor =
+    selectedEdge?.data?.customColor ??
+    (typeof selectedEdge?.style?.stroke === 'string' ? selectedEdge.style.stroke : '#94a3b8')
+  const selectedEdgeStrokeWidth = Number(selectedEdge?.data?.customStrokeWidth ?? selectedEdge?.style?.strokeWidth ?? 3)
+  const selectedEdgeLabel = selectedEdge?.data?.isManual ? text.manualEdge : text.transitEdge
 
   return (
     <aside
@@ -232,6 +250,87 @@ export function Sidebar({
         </button>
         <p className="text-sm text-slate-400">{text.shareDescription}</p>
         {shareError ? <p className="text-sm text-rose-300">{shareError}</p> : null}
+      </section>
+
+      <section className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-white">{text.mapLineStyle}</h2>
+          <span className="rounded-full bg-sky-400/10 px-3 py-1 text-xs text-sky-200">{text.globalSetting}</span>
+        </div>
+        <label className="block text-sm text-slate-300" htmlFor="map-line-style">
+          {text.mapLineStyleDescription}
+        </label>
+        <select
+          className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300"
+          id="map-line-style"
+          value={globalEdgeStyle}
+          onChange={(event) => onGlobalEdgeStyleChange(event.target.value as EdgeRoutingStyle)}
+        >
+          {edgeStyleOptions.map((option) => (
+            <option key={option} value={option}>
+              {text.edgeStyleOptions[option]}
+            </option>
+          ))}
+        </select>
+      </section>
+
+      <section className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-white">{text.edgeCustomization}</h2>
+          <span className="rounded-full bg-fuchsia-400/10 px-3 py-1 text-xs text-fuchsia-200">{selectedEdge ? selectedEdgeLabel : text.selectEdgeBadge}</span>
+        </div>
+        {!selectedEdge ? (
+          <p className="text-sm text-slate-400">{text.selectEdgeHint}</p>
+        ) : (
+          <>
+            <p className="text-sm text-slate-300">{text.customizeEdgeLabel.replace('{edge}', selectedEdgeLabel)}</p>
+            <div className="space-y-2">
+              <label className="block text-sm text-slate-300" htmlFor="selected-edge-color">
+                {text.edgeColor}
+              </label>
+              <input
+                id="selected-edge-color"
+                className="h-11 w-full rounded-2xl border border-white/10 bg-slate-900 p-2"
+                type="color"
+                value={selectedEdgeColor}
+                onChange={(event) => onEdgeColorChange(event.target.value)}
+              />
+              <div className="flex flex-wrap gap-2">
+                {edgeColorPalette.map((color) => (
+                  <button
+                    key={color}
+                    aria-label={text.edgeColorSwatch.replace('{color}', color)}
+                    className={`h-8 w-8 rounded-full border transition ${selectedEdgeColor === color ? 'border-white' : 'border-white/20'}`}
+                    style={{ backgroundColor: color }}
+                    type="button"
+                    onClick={() => onEdgeColorChange(color)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <label className="block text-sm text-slate-300" htmlFor="selected-edge-stroke-width">
+                  {text.edgeStrokeWidth}
+                </label>
+                <span className="text-sm text-slate-400">
+                  {text.edgeStrokeWidthValue.replace('{count}', String(selectedEdgeStrokeWidth))}
+                </span>
+              </div>
+              <input
+                id="selected-edge-stroke-width"
+                className="w-full accent-cyan-300"
+                max={15}
+                min={1}
+                step={1}
+                type="range"
+                value={selectedEdgeStrokeWidth}
+                onChange={(event) => onEdgeStrokeWidthChange(Number(event.target.value))}
+              />
+            </div>
+          </>
+        )}
       </section>
 
       <fieldset className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4">

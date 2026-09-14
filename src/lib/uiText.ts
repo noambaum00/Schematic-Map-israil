@@ -1,5 +1,6 @@
 import type { TransitLanguage } from './gtfs'
 import type { FrequencyTier } from '../data/transitPlan'
+import type { EdgeRoutingStyle } from './canvasGraph'
 
 export function isRtlLanguage(language: TransitLanguage) {
   return language !== 'English'
@@ -14,7 +15,8 @@ export function getTextAlignment(language: TransitLanguage): 'left' | 'right' {
 }
 
 type InterfaceCopy = {
-  [key: string]: string | Record<FrequencyTier, string>
+  [key: string]: string | Record<FrequencyTier, string> | Record<EdgeRoutingStyle, string>
+  edgeStyleOptions: Record<EdgeRoutingStyle, string>
   frequencyTierLabels: Record<FrequencyTier, string>
 }
 
@@ -33,8 +35,20 @@ export const interfaceText = {
     canvasRegionDescription:
       'Use the interactive graph to inspect GTFS station and transfer hub nodes, add POI nodes from the sidebar, draw pointer-based octilinear manual connections, and export or share the full React Flow canvas.',
     canvasTips: 'Canvas tips',
+    customizeEdgeLabel: 'Customizing: {edge}',
     drawLinks: 'Draw new links by dragging between POI and transit handles.',
     dragWithGrid: 'Drag GTFS stations, transfer hubs, or POI nodes with 20px grid snapping.',
+    edgeColor: 'Edge color',
+    edgeColorSwatch: 'Use edge color {color}',
+    edgeCustomization: 'Edge customization',
+    edgeStrokeWidth: 'Stroke width',
+    edgeStrokeWidthValue: '{count}px',
+    edgeStyleOptions: {
+      default: 'Curved / Flow',
+      schematic: 'Octilinear (45°)',
+      smoothstep: 'Rounded steps',
+      straight: 'Straight lines',
+    },
     editPoi: 'Select a POI node, then edit its label from the sidebar.',
     export: 'Export',
     exportDescription: 'Temporarily fits the full graph into view before exporting the `.react-flow` canvas as SVG.',
@@ -49,6 +63,7 @@ export const interfaceText = {
     gtfsStationFallback: 'GTFS station',
     gtfsSource: 'GTFS source',
     gtfsAware: 'GTFS-aware',
+    globalSetting: 'Global',
     headsign: 'Headsign',
     interactiveWorkspace: 'Interactive schematic workspace',
     installedPackages: 'Installed npm packages',
@@ -57,6 +72,9 @@ export const interfaceText = {
     loadedFeedNotice: 'Loaded {fileName} · {routes} routes · {trips} trips · {stops} stops · {hubs} hubs',
     loadFeedToBrowse: 'Load a feed to browse routes.',
     loadFeedToRestoreSharedMap: 'Shared map found. Upload the matching GTFS zip to restore the saved layout.',
+    manualEdge: 'Manual POI connection',
+    mapLineStyle: 'Map line style',
+    mapLineStyleDescription: 'Choose how all visible map lines are routed on the canvas.',
     noFeedLoaded: 'No feed loaded yet.',
     noRoutesMatch: 'No routes match the current search.',
     nodeLabelsBehavior: 'Canvas labels use {order} reading order with {direction} text direction and {alignment} alignment.',
@@ -77,6 +95,8 @@ export const interfaceText = {
     reactFlowBadge: 'React Flow',
     reactFlowCanvas: 'React Flow canvas',
     rtlReady: 'RTL/LTR ready',
+    selectEdgeBadge: 'Select an edge',
+    selectEdgeHint: 'Click a transit line or manual POI link on the canvas to customize its color and stroke width.',
     searchAndSelection: 'Search & selection',
     searchPlaceholder: 'e.g. A1, Red Line, 480',
     searchRailLightBus: 'Search rail, light rail, or bus lines',
@@ -88,6 +108,7 @@ export const interfaceText = {
     shareMap: 'Share Map',
     stopsCount: '{count} stops',
     transferHubStops: '{count} linked stops',
+    transitEdge: 'Transit line',
     trainNumberTemplate: 'Train number template',
     trainTemplateRendered: 'Rendered on the longest octilinear segment: {label}',
     tripsCount: '{count} trips',
@@ -116,8 +137,20 @@ export const interfaceText = {
     canvasRegionDescription:
       'השתמשו בגרף האינטראקטיבי כדי לבדוק תחנות GTFS ומוקדי מעבר, להוסיף נקודות עניין מהסרגל הצדדי, לצייר חיבורים אוקטילינאריים באמצעות העכבר, ולייצא או לשתף את קנבס React Flow המלא.',
     canvasTips: 'טיפים לקנבס',
+    customizeEdgeLabel: 'עריכת: {edge}',
     drawLinks: 'צרו חיבורים חדשים על ידי גרירה בין ידיות של נקודות עניין ותחנות.',
     dragWithGrid: 'גררו תחנות GTFS, מוקדי מעבר או נקודות עניין עם הצמדה לרשת של 20 פיקסלים.',
+    edgeColor: 'צבע קו',
+    edgeColorSwatch: 'בחירת צבע קו {color}',
+    edgeCustomization: 'התאמת קו',
+    edgeStrokeWidth: 'עובי קו',
+    edgeStrokeWidthValue: '{count}px',
+    edgeStyleOptions: {
+      default: 'מעוגל / Flow',
+      schematic: 'אוקטילינארי (45°)',
+      smoothstep: 'מדרגות מעוגלות',
+      straight: 'קווים ישרים',
+    },
     editPoi: 'בחרו נקודת עניין ואז ערכו את התווית שלה מהסרגל הצדדי.',
     export: 'ייצוא',
     exportDescription: 'הגרף כולו מותאם זמנית למסך לפני ייצוא קנבס `.react-flow` כ־SVG.',
@@ -132,6 +165,7 @@ export const interfaceText = {
     gtfsStationFallback: 'תחנת GTFS',
     gtfsSource: 'מקור GTFS',
     gtfsAware: 'מותאם ל‑GTFS',
+    globalSetting: 'גלובלי',
     headsign: 'יעד',
     interactiveWorkspace: 'סביבת עבודה סכמטית אינטראקטיבית',
     installedPackages: 'חבילות npm מותקנות',
@@ -140,6 +174,9 @@ export const interfaceText = {
     loadedFeedNotice: 'נטען {fileName} · ‏{routes} קווים · ‏{trips} נסיעות · ‏{stops} תחנות · ‏{hubs} מוקדים',
     loadFeedToBrowse: 'טענו פיד כדי לעיין בקווים.',
     loadFeedToRestoreSharedMap: 'נמצאה מפה משותפת. העלו את קובץ ה‑GTFS המתאים כדי לשחזר את הפריסה השמורה.',
+    manualEdge: 'חיבור POI ידני',
+    mapLineStyle: 'סגנון קווי המפה',
+    mapLineStyleDescription: 'בחרו איך כל הקווים הגלויים יוצגו על הקנבס.',
     noFeedLoaded: 'עדיין לא נטען פיד.',
     noRoutesMatch: 'אין קווים התואמים לחיפוש הנוכחי.',
     nodeLabelsBehavior: 'תוויות הקנבס משתמשות בסדר קריאה {order}, עם כיוון טקסט {direction} ויישור {alignment}.',
@@ -160,6 +197,8 @@ export const interfaceText = {
     reactFlowBadge: 'React Flow',
     reactFlowCanvas: 'קנבס React Flow',
     rtlReady: 'מוכן ל‑RTL/LTR',
+    selectEdgeBadge: 'בחרו קו',
+    selectEdgeHint: 'לחצו על קו תחבורה או על חיבור POI ידני בקנבס כדי לשנות צבע ועובי.',
     searchAndSelection: 'חיפוש ובחירה',
     searchPlaceholder: 'למשל A1, Red Line, 480',
     searchRailLightBus: 'חפשו קווי רכבת, רכבת קלה או אוטובוס',
@@ -171,6 +210,7 @@ export const interfaceText = {
     shareMap: 'שיתוף מפה',
     stopsCount: '{count} תחנות',
     transferHubStops: '{count} תחנות מקושרות',
+    transitEdge: 'קו תחבורה',
     trainNumberTemplate: 'תבנית מספר רכבת',
     trainTemplateRendered: 'מוצג על המקטע האוקטילינארי הארוך ביותר: {label}',
     tripsCount: '{count} נסיעות',
@@ -199,8 +239,20 @@ export const interfaceText = {
     canvasRegionDescription:
       'استخدم المخطط التفاعلي لفحص محطات GTFS وعُقد التحويل، وإضافة نقاط اهتمام من الشريط الجانبي، ورسم وصلات ثمانية الاتجاهات بالمؤشر، ثم تصدير أو مشاركة لوحة React Flow كاملة.',
     canvasTips: 'نصائح اللوحة',
+    customizeEdgeLabel: 'تخصيص: {edge}',
     drawLinks: 'ارسم وصلات جديدة عبر السحب بين مقابض نقاط الاهتمام والمحطات.',
     dragWithGrid: 'اسحب محطات GTFS وعُقد التحويل أو نقاط الاهتمام مع الالتقاط إلى شبكة 20 بكسل.',
+    edgeColor: 'لون الخط',
+    edgeColorSwatch: 'استخدم لون الخط {color}',
+    edgeCustomization: 'تخصيص الخط',
+    edgeStrokeWidth: 'سماكة الخط',
+    edgeStrokeWidthValue: '{count}px',
+    edgeStyleOptions: {
+      default: 'منحني / Flow',
+      schematic: 'ثماني الاتجاهات (45°)',
+      smoothstep: 'خطوات مستديرة',
+      straight: 'خطوط مستقيمة',
+    },
     editPoi: 'حدّد نقطة اهتمام ثم عدّل تسميتها من الشريط الجانبي.',
     export: 'تصدير',
     exportDescription: 'يتم احتواء المخطط كاملًا مؤقتًا قبل تصدير لوحة `.react-flow` كملف SVG.',
@@ -215,6 +267,7 @@ export const interfaceText = {
     gtfsStationFallback: 'محطة GTFS',
     gtfsSource: 'مصدر GTFS',
     gtfsAware: 'مدعوم بـ GTFS',
+    globalSetting: 'عام',
     headsign: 'الوجهة',
     interactiveWorkspace: 'مساحة عمل تخطيطية تفاعلية',
     installedPackages: 'حزم npm المثبتة',
@@ -223,6 +276,9 @@ export const interfaceText = {
     loadedFeedNotice: 'تم تحميل {fileName} · {routes} خطوط · {trips} رحلات · {stops} محطات · {hubs} مراكز',
     loadFeedToBrowse: 'حمّل تغذية للتصفح بين الخطوط.',
     loadFeedToRestoreSharedMap: 'تم العثور على خريطة مشتركة. حمّل ملف GTFS المطابق لاستعادة التخطيط المحفوظ.',
+    manualEdge: 'وصلة POI يدوية',
+    mapLineStyle: 'نمط خطوط الخريطة',
+    mapLineStyleDescription: 'اختر كيفية توجيه جميع الخطوط الظاهرة على اللوحة.',
     noFeedLoaded: 'لم يتم تحميل أي تغذية بعد.',
     noRoutesMatch: 'لا توجد خطوط تطابق البحث الحالي.',
     nodeLabelsBehavior: 'تستخدم تسميات اللوحة ترتيب قراءة {order} مع اتجاه نص {direction} ومحاذاة {alignment}.',
@@ -243,6 +299,8 @@ export const interfaceText = {
     reactFlowBadge: 'React Flow',
     reactFlowCanvas: 'لوحة React Flow',
     rtlReady: 'جاهز لـ RTL/LTR',
+    selectEdgeBadge: 'اختر خطًا',
+    selectEdgeHint: 'انقر على خط نقل أو وصلة POI يدوية على اللوحة لتخصيص اللون والسماكة.',
     searchAndSelection: 'البحث والاختيار',
     searchPlaceholder: 'مثال: A1 أو Red Line أو 480',
     searchRailLightBus: 'ابحث عن خطوط القطار أو القطار الخفيف أو الحافلات',
@@ -254,6 +312,7 @@ export const interfaceText = {
     shareMap: 'مشاركة الخريطة',
     stopsCount: '{count} محطات',
     transferHubStops: '{count} محطات مترابطة',
+    transitEdge: 'خط نقل',
     trainNumberTemplate: 'قالب رقم القطار',
     trainTemplateRendered: 'يُعرض على أطول مقطع ثماني الاتجاهات: {label}',
     tripsCount: '{count} رحلة',

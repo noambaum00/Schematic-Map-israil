@@ -10,11 +10,22 @@ export type TransitCanvasNode = Node<TransitStopNodeData, 'transit'>
 export type HubCanvasNode = Node<TransitStopNodeData, 'hub'>
 export type POICanvasNode = Node<POINodeData, 'poi'>
 export type CanvasNode = TransitCanvasNode | HubCanvasNode | POICanvasNode
-export type CanvasEdge = Edge<{
+
+export const edgeRoutingStyles = ['schematic', 'default', 'smoothstep', 'straight'] as const
+
+export type EdgeRoutingStyle = (typeof edgeRoutingStyles)[number]
+
+export type CanvasEdgeData = {
+  customColor?: string
+  customStrokeWidth?: number
   frequencyTier?: ParsedRoute['frequencyTier']
   isManual?: boolean
   operatorColor?: string
-}, 'schematic'>
+}
+
+export type CanvasEdge = Edge<CanvasEdgeData, EdgeRoutingStyle>
+
+export type EdgeCustomization = Pick<CanvasEdgeData, 'customColor' | 'customStrokeWidth'>
 
 function buildUndirectedConnectionKey(source: string, target: string) {
   return [source, target].sort().join('<->')
@@ -160,6 +171,8 @@ export function connectCanvasEdge(connection: Connection, currentEdges: CanvasEd
     {
       ...connection,
       data: {
+        customColor: undefined,
+        customStrokeWidth: undefined,
         isManual: true,
       },
       id: `manual-edge-${source}-${target}-${currentEdges.length + 1}`,
@@ -168,4 +181,44 @@ export function connectCanvasEdge(connection: Connection, currentEdges: CanvasEd
     },
     currentEdges,
   )
+}
+
+export function getCanvasEdgeStrokeWidth(edge: Pick<CanvasEdge, 'data' | 'style'>) {
+  if (typeof edge.data?.customStrokeWidth === 'number') {
+    return edge.data.customStrokeWidth
+  }
+
+  if (typeof edge.style?.strokeWidth === 'number') {
+    return edge.style.strokeWidth
+  }
+
+  const numericStrokeWidth = Number(edge.style?.strokeWidth)
+  return Number.isFinite(numericStrokeWidth) && numericStrokeWidth > 0 ? numericStrokeWidth : 3
+}
+
+export function getCanvasEdgeStroke(edge: Pick<CanvasEdge, 'data' | 'style'>) {
+  if (edge.data?.customColor) {
+    return edge.data.customColor
+  }
+
+  if (typeof edge.style?.stroke === 'string') {
+    return edge.style.stroke
+  }
+
+  return edge.data?.operatorColor ?? '#94a3b8'
+}
+
+export function applyEdgePresentation(edge: CanvasEdge, routingStyle: EdgeRoutingStyle): CanvasEdge {
+  return {
+    ...edge,
+    data: {
+      ...edge.data,
+    },
+    style: {
+      ...edge.style,
+      stroke: getCanvasEdgeStroke(edge),
+      strokeWidth: getCanvasEdgeStrokeWidth(edge),
+    },
+    type: routingStyle,
+  }
 }
