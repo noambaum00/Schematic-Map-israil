@@ -12,10 +12,12 @@ const OUTPUT_FILE = process.env.GTFS_OUTPUT_FILE ?? join(process.cwd(), 'public'
 const REQUIRED_FILES = ['routes.txt', 'trips.txt', 'stop_times.txt', 'stops.txt']
 const OPTIONAL_FILES = ['agency.txt', 'translations.txt']
 const STRIPPED_NAME_PATTERNS = [/\bplatform\b/gi, /\bterminal\b/gi, /\bstation\b/gi, /\bstop\b/gi, /\bbay\b/gi, /מסוף/gi, /רציף/gi]
-const textDecoders = [
-  new TextDecoder('utf-8', { fatal: true }),
-  new TextDecoder('windows-1255'),
-  new TextDecoder('windows-1252'),
+const textDecoderSpecs = [
+  { encoding: 'utf-8', options: { fatal: true } },
+  { encoding: 'utf-16le' },
+  { encoding: 'utf-16be' },
+  { encoding: 'windows-1255' },
+  { encoding: 'windows-1252' },
 ]
 
 function normalizeWhitespace(value) {
@@ -230,16 +232,84 @@ function clusterStopsIntoTransferHubs(stops, mergeRadiusMeters = 200) {
   return { hubNodes, stopToHubMap }
 }
 
-function decodeGtfsText(buffer) {
-  for (const decoder of textDecoders) {
+function getHeaderLine(text) {
+  return text.replace(/^\uFEFF/, '').split(/\r?\n/u, 1)[0]?.trim() ?? ''
+}
+
+function isLikelyGtfsCsv(text) {
+  const headerLine = getHeaderLine(text)
+
+  if (!headerLine || !headerLine.includes(',') || headerLine.includes('\u0000')) {
+    return false
+  }
+
+  const columns = headerLine.split(',').map((value) => value.trim()).filter(Boolean)
+  return columns.length >= 2 && columns.every((column) => /^[A-Za-z0-9_.-]+$/u.test(column))
+}
+
+function getPreferredTextDecoders(buffer) {
+  const leadingBytes = buffer.subarray(0, 4)
+
+  if (leadingBytes[0] === 0xef && leadingBytes[1] === 0xbb && leadingBytes[2] === 0xbf) {
+    return textDecoderSpecs
+  }
+
+  if (leadingBytes[0] === 0xff && leadingBytes[1] === 0xfe) {
+    return [textDecoderSpecs[1], ...textDecoderSpecs.filter((decoder) => decoder.encoding !== 'utf-16le')]
+  }
+
+  if (leadingBytes[0] === 0xfe && leadingBytes[1] === 0xff) {
+    return [textDecoderSpecs[2], ...textDecoderSpecs.filter((decoder) => decoder.encoding !== 'utf-16be')]
+  }
+
+  const sample = buffer.subarray(0, Math.min(buffer.length, 128))
+  let evenZeroBytes = 0
+  let oddZeroBytes = 0
+
+  for (let index = 0; index < sample.length; index += 1) {
+    if (sample[index] !== 0) {
+      continue
+    }
+
+    if (index % 2 === 0) {
+      evenZeroBytes += 1
+    } else {
+      oddZeroBytes += 1
+    }
+  }
+
+  if (oddZeroBytes >= 8 && oddZeroBytes >= evenZeroBytes * 2) {
+    return [textDecoderSpecs[1], ...textDecoderSpecs.filter((decoder) => decoder.encoding !== 'utf-16le')]
+  }
+
+  if (evenZeroBytes >= 8 && evenZeroBytes >= oddZeroBytes * 2) {
+    return [textDecoderSpecs[2], ...textDecoderSpecs.filter((decoder) => decoder.encoding !== 'utf-16be')]
+  }
+
+  return textDecoderSpecs
+}
+
+function decodeGtfsText(buffer, fileName) {
+  const attemptedEncodings = []
+
+  for (const { encoding, options } of getPreferredTextDecoders(buffer)) {
     try {
-      return decoder.decode(buffer)
-    } catch {
+      const decoder = new TextDecoder(encoding, options)
+      const decoded = decoder.decode(buffer)
+
+      if (!isLikelyGtfsCsv(decoded)) {
+        attemptedEncodings.push(`${encoding} (decoded text did not match GTFS CSV headers)`)
+        continue
+      }
+
+      return decoded
+    } catch (error) {
+      attemptedEncodings.push(`${encoding} (${error instanceof Error ? error.message : 'unknown decode error'})`)
       continue
     }
   }
 
-  throw new Error('Unable to decode GTFS text file.')
+  throw new Error(`Unable to decode ${fileName}. Tried: ${attemptedEncodings.join(', ')}`)
 }
 
 function parseCsv(content, fileName) {
@@ -472,23 +542,32 @@ async function extractFilesToTempDirectory(buffer) {
   }
 }
 
-async function readExtractedFile(extractedFiles, fileName) {
+async function readExtractedFile(extractedFiles, fileName, { required = true } = {}) {
   const filePath = extractedFiles.get(fileName)
 
   if (!filePath) {
     return null
   }
 
-  return decodeGtfsText(await readFile(filePath))
+  try {
+    return decodeGtfsText(await readFile(filePath), fileName)
+  } catch (error) {
+    if (!required) {
+      console.warn(`Skipping optional ${fileName}: ${error instanceof Error ? error.message : error}`)
+      return null
+    }
+
+    throw error
+  }
 }
 
 async function buildTransitGraphPayload(extractedFiles) {
-  const agencyText = await readExtractedFile(extractedFiles, 'agency.txt')
+  const agencyText = await readExtractedFile(extractedFiles, 'agency.txt', { required: false })
   const routesText = await readExtractedFile(extractedFiles, 'routes.txt')
   const tripsText = await readExtractedFile(extractedFiles, 'trips.txt')
   const stopTimesText = await readExtractedFile(extractedFiles, 'stop_times.txt')
   const stopsText = await readExtractedFile(extractedFiles, 'stops.txt')
-  const translationsText = await readExtractedFile(extractedFiles, 'translations.txt')
+  const translationsText = await readExtractedFile(extractedFiles, 'translations.txt', { required: false })
 
   const agencies = agencyText ? parseCsv(agencyText, 'agency.txt') : []
   const routes = parseCsv(routesText ?? '', 'routes.txt')
