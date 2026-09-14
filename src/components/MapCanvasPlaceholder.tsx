@@ -41,16 +41,16 @@ type MapCanvasPlaceholderProps = {
 
 const emptyStates: Record<TransitLanguage, { title: string; description: string }> = {
   English: {
-    title: 'Upload a GTFS zip to start',
-    description: 'The React Flow canvas switches from an empty graph to live GTFS routes as soon as you load an MOT archive.',
+    title: 'Loading the built-in GTFS feed',
+    description: 'The map auto-loads the latest processed MOT feed at build time, and you can still replace it with another archive from the sidebar.',
   },
   'עברית': {
-    title: 'העלו קובץ GTFS כדי להתחיל',
-    description: 'קנבס React Flow יעבור לנתוני GTFS אמיתיים מיד לאחר טעינת ארכיון MOT.',
+    title: 'טוען את פיד ה‑GTFS המובנה',
+    description: 'המפה טוענת אוטומטית את פיד משרד התחבורה שעובד בזמן הבנייה, ואפשר עדיין להחליף אותו מהסרגל הצדדי.',
   },
   'العربية': {
-    title: 'حمّل ملف GTFS للبدء',
-    description: 'ستنتقل لوحة React Flow إلى بيانات GTFS الحقيقية فور تحميل أرشيف MOT.',
+    title: 'جارٍ تحميل تغذية GTFS المدمجة',
+    description: 'تقوم الخريطة بتحميل تغذية الوزارة المعالجة وقت البناء تلقائيًا، وما زال بإمكانك استبدالها من الشريط الجانبي.',
   },
 }
 
@@ -92,7 +92,7 @@ function CanvasInner({
   const miniMapNodeColor = useMemo(
     () => (node: CanvasNode) => {
       if (node.type === 'poi') {
-        return '#f59e0b'
+        return '#2563eb'
       }
 
       return node.data.operatorColor
@@ -101,25 +101,25 @@ function CanvasInner({
   )
 
   return (
-    <section className="relative flex min-h-[760px] flex-1 flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900/80">
+    <section className="relative flex min-h-[760px] flex-1 flex-col overflow-hidden rounded-[2rem] border border-gray-200 bg-white shadow-sm">
       <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.12)_1px,transparent_1px)] bg-[size:20px_20px]" />
-      <div className="absolute inset-x-0 top-0 h-48 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.18),transparent_60%)]" />
+      <div className="absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_top,rgba(37,99,235,0.12),transparent_70%)]" />
 
-      <div className="relative z-10 flex items-center justify-between gap-4 border-b border-white/10 px-6 py-5">
+      <div className="relative z-10 flex items-center justify-between gap-4 border-b border-gray-200 bg-white/90 px-6 py-5">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">{activeText.reactFlowCanvas}</p>
-          <h2 className="mt-2 text-2xl font-semibold text-white">{activeText.interactiveWorkspace}</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-blue-600">{activeText.reactFlowCanvas}</p>
+          <h2 className="mt-2 text-2xl font-semibold text-gray-900">{activeText.interactiveWorkspace}</h2>
         </div>
-        <div className="flex flex-wrap gap-2 text-xs text-slate-200">
-          <span className="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5">{activeText.canvasBadgeFeed}</span>
-          <span className="rounded-full border border-violet-400/40 bg-violet-400/10 px-3 py-1.5">{activeText.canvasBadgeHubs}</span>
-          <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1.5">{activeText.canvasBadgePoi}</span>
-          <span className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1.5">{activeText.canvasBadgeExport}</span>
+        <div className="flex flex-wrap gap-2 text-xs text-blue-700">
+          <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5">{activeText.canvasBadgeFeed}</span>
+          <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5">{activeText.canvasBadgeHubs}</span>
+          <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5">{activeText.canvasBadgePoi}</span>
+          <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5">{activeText.canvasBadgeExport}</span>
         </div>
       </div>
 
       <div className="relative z-10 grid flex-1 gap-6 p-6 lg:grid-cols-[minmax(0,1.65fr)_340px]">
-        <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/70">
+        <div className="overflow-hidden rounded-[1.75rem] border border-gray-200 bg-gray-50">
           <div
             ref={wrapperRef}
             aria-label={activeText.canvasRegionLabel}
@@ -133,7 +133,7 @@ function CanvasInner({
             <ReactFlow<CanvasNode, CanvasEdge>
               attributionPosition="bottom-left"
               connectionMode={ConnectionMode.Loose}
-              defaultEdgeOptions={{ style: { stroke: '#94a3b8', strokeWidth: 3 }, type: 'schematic' }}
+              defaultEdgeOptions={{ style: { stroke: '#64748b', strokeWidth: 3 }, type: 'schematic' }}
               elementsSelectable
               edgeTypes={edgeTypes}
               edges={edges}
@@ -148,33 +148,24 @@ function CanvasInner({
               snapGrid={[20, 20]}
               snapToGrid
             >
-              <Background color="#1e293b" gap={20} size={1.2} />
-              <MiniMap
-                className="!bg-slate-950/90"
-                maskColor="rgba(15, 23, 42, 0.75)"
-                nodeBorderRadius={16}
-                nodeColor={miniMapNodeColor}
-                pannable
-                zoomable
-              />
-              <Controls className="!rounded-2xl !border !border-white/10 !bg-slate-950/90 !shadow-xl" showInteractive={false} />
+              <Background color="#cbd5e1" gap={20} size={1.1} />
+              <MiniMap className="!border !border-gray-200 !bg-white !shadow-sm" maskColor="rgba(219, 234, 254, 0.65)" nodeBorderRadius={16} nodeColor={miniMapNodeColor} pannable zoomable />
+              <Controls className="!rounded-2xl !border !border-gray-200 !bg-white !shadow-sm" showInteractive={false} />
             </ReactFlow>
             <Legend activeLanguage={activeLanguage} route={route} />
           </div>
         </div>
 
         <div className="grid gap-4">
-          <article className="rounded-[1.75rem] border border-white/10 bg-slate-950/60 p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">{activeText.routeMetadata}</p>
+          <article className="rounded-[1.75rem] border border-gray-200 bg-gray-50 p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600">{activeText.routeMetadata}</p>
             {!route ? (
               <>
-                <p className="mt-4 text-sm font-semibold text-white">{isLoading ? activeText.parsingGtfs : emptyStates[activeLanguage].title}</p>
-                <p className="mt-3 text-sm text-slate-300">
-                  {isLoading ? activeText.readingArchive : emptyStates[activeLanguage].description}
-                </p>
+                <p className="mt-4 text-sm font-semibold text-gray-900">{isLoading ? activeText.parsingGtfs : emptyStates[activeLanguage].title}</p>
+                <p className="mt-3 text-sm text-gray-600">{isLoading ? activeText.readingArchive : emptyStates[activeLanguage].description}</p>
               </>
             ) : (
-              <ul className="mt-4 space-y-3 text-sm text-slate-300">
+              <ul className="mt-4 space-y-3 text-sm text-gray-700">
                 <li>• {activeText.routeMode}: {route.mode}</li>
                 <li>• {activeText.routeOperator}: {route.operator}</li>
                 <li>• {activeText.tripId}: {route.representativeTripId}</li>
@@ -185,18 +176,18 @@ function CanvasInner({
             )}
           </article>
 
-          <article className="rounded-[1.75rem] border border-white/10 bg-slate-950/60 p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">{activeText.canvasTips}</p>
-            <ul className="mt-4 space-y-3 text-sm text-slate-300">
+          <article className="rounded-[1.75rem] border border-gray-200 bg-gray-50 p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600">{activeText.canvasTips}</p>
+            <ul className="mt-4 space-y-3 text-sm text-gray-700">
               <li>• {activeText.dragWithGrid}</li>
               <li>• {activeText.drawLinks}</li>
               <li>• {activeText.editPoi}</li>
             </ul>
           </article>
 
-          <article className="rounded-[1.75rem] border border-white/10 bg-slate-950/60 p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">{activeText.activeLanguage}</p>
-            <p className="mt-4 text-sm text-slate-300">
+          <article className="rounded-[1.75rem] border border-gray-200 bg-gray-50 p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600">{activeText.activeLanguage}</p>
+            <p className="mt-4 text-sm text-gray-700">
               {activeText.nodeLabelsDescription}{' '}
               {activeText.nodeLabelsBehavior
                 .replace('{order}', isRtl ? 'RTL' : 'LTR')
@@ -206,11 +197,9 @@ function CanvasInner({
           </article>
 
           {route?.trainTemplateLabel ? (
-            <article className="rounded-[1.75rem] border border-cyan-400/20 bg-cyan-400/10 p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-100">{activeText.trainNumberTemplate}</p>
-              <p className="mt-4 text-sm text-cyan-50">
-                {activeText.trainTemplateRendered.replace('{label}', route.trainTemplateLabel)}
-              </p>
+            <article className="rounded-[1.75rem] border border-blue-200 bg-blue-50 p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">{activeText.trainNumberTemplate}</p>
+              <p className="mt-4 text-sm text-blue-800">{activeText.trainTemplateRendered.replace('{label}', route.trainTemplateLabel)}</p>
             </article>
           ) : null}
         </div>

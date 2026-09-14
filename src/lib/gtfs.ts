@@ -59,19 +59,6 @@ const stopSchema = z.object({
   location_type: z.string().optional().default('0'),
 })
 
-type AgencyRow = z.infer<typeof agencySchema>
-type RouteRow = z.infer<typeof routeSchema>
-type TripRow = z.infer<typeof tripSchema>
-type StopTimeRow = z.infer<typeof stopTimeSchema>
-type StopRow = z.infer<typeof stopSchema>
-type TranslationRow = z.infer<typeof translationSchema>
-
-export type TransitMode = 'rail' | 'light-rail' | 'bus'
-export type TransitLanguage = 'English' | 'עברית' | 'العربية'
-export type LocalizedStopNames = Record<TransitLanguage, string>
-
-export type WheelchairStatus = 'accessible' | 'inaccessible' | 'unknown'
-
 export type ParsedStop = {
   id: string
   name: string
@@ -109,12 +96,66 @@ export type ParsedFeed = {
   trips: number
 }
 
+const parsedStopSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  code: z.string(),
+  latitude: z.number(),
+  longitude: z.number(),
+  wheelchairStatus: z.enum(['accessible', 'inaccessible', 'unknown']),
+  isTransferHub: z.boolean(),
+  constituent_stop_ids: z.array(z.string()),
+  names: z.object({
+    English: z.string(),
+    'עברית': z.string(),
+    'العربية': z.string(),
+  }),
+})
+
+const parsedRouteSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  description: z.string(),
+  frequencyTier: z.enum(['HIGH_FREQUENCY', 'MEDIUM_FREQUENCY', 'LOW_FREQUENCY']),
+  mode: z.enum(['rail', 'light-rail', 'bus']),
+  operator: z.string().min(1),
+  operatorColor: z.string().min(1),
+  tripCount: z.number().int().nonnegative(),
+  trainTemplates: z.array(z.string()),
+  trainTemplateLabel: z.string().nullable(),
+  representativeTripId: z.string().min(1),
+  representativeHeadsign: z.string(),
+  stops: z.array(parsedStopSchema),
+})
+
+const parsedFeedSchema = z.object({
+  fileName: z.string().min(1),
+  agencies: z.number().int().nonnegative(),
+  hubStops: z.number().int().nonnegative(),
+  routes: z.array(parsedRouteSchema),
+  stops: z.number().int().nonnegative(),
+  trips: z.number().int().nonnegative(),
+})
+
+export type TransitMode = 'rail' | 'light-rail' | 'bus'
+export type TransitLanguage = 'English' | 'עברית' | 'العربية'
+export type LocalizedStopNames = Record<TransitLanguage, string>
+
+export type WheelchairStatus = 'accessible' | 'inaccessible' | 'unknown'
+
+type AgencyRow = z.infer<typeof agencySchema>
+type RouteRow = z.infer<typeof routeSchema>
+type TripRow = z.infer<typeof tripSchema>
+type StopTimeRow = z.infer<typeof stopTimeSchema>
+type StopRow = z.infer<typeof stopSchema>
+type TranslationRow = z.infer<typeof translationSchema>
+
 type ParsedCsvResult<T> = {
   data: T[]
 }
 
 function parseCsv<T extends z.ZodTypeAny>(content: string, schema: T, fileName: string): ParsedCsvResult<z.infer<T>> {
-  const parsed = Papa.parse<Record<string, string>>(content, {
+  const parsed = Papa.parse<Record<string, string>>(content.replace(/^\uFEFF/, ''), {
     header: true,
     skipEmptyLines: true,
     transformHeader: (header) => header.trim(),
@@ -266,6 +307,17 @@ function buildClusterableStop(stop: StopRow, translationMap: Map<string, Partial
   }
 }
 
+export async function loadBundledFeed(url: string): Promise<ParsedFeed> {
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    throw new Error(`Failed to load the bundled GTFS feed (${response.status}).`)
+  }
+
+  const payload = await response.json()
+  return parsedFeedSchema.parse(payload)
+}
+
 export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
   const zip = await JSZip.loadAsync(await file.arrayBuffer())
 
@@ -368,7 +420,8 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
         return true
       })
 
-      const uniqueStops = orderedUniqueStopIds.map((stopId) => clusteredStopMap.get(stopId))
+      const uniqueStops = orderedUniqueStopIds
+        .map((stopId) => clusteredStopMap.get(stopId))
         .filter((stop): stop is NonNullable<typeof stop> => Boolean(stop))
         .map((stop) => ({
           code: stop.code,

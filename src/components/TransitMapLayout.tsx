@@ -12,13 +12,14 @@ import type { CanvasEdge, CanvasNode, EdgeCustomization, EdgeRoutingStyle, POICa
 import { applyEdgePresentation, buildTransitGraph, connectCanvasEdge } from '../lib/canvasGraph'
 import { exportFlowAsSvg } from '../lib/exportFlowAsSvg'
 import type { ParsedFeed, ParsedRoute, TransitLanguage } from '../lib/gtfs'
-import { parseGtfsArchive } from '../lib/gtfs'
+import { loadBundledFeed, parseGtfsArchive } from '../lib/gtfs'
 import { buildShareableMapState, buildShareableMapUrl, readSharedStateFromUrl } from '../lib/shareableState'
 import { getDirection, getTextAlignment, interfaceText } from '../lib/uiText'
 import { MapCanvasPlaceholder } from './MapCanvasPlaceholder'
 import { Sidebar } from './Sidebar'
 
 const defaultLanguage: TransitLanguage = 'English'
+const bundledFeedUrl = `${import.meta.env.BASE_URL}transit_graph.json`
 
 export function TransitMapLayout() {
   const initialSharedState = useMemo(() => readSharedStateFromUrl(), [])
@@ -58,26 +59,13 @@ export function TransitMapLayout() {
     }
 
     return allRoutes.filter((route) => {
-      const haystack = [
-        route.label,
-        route.operator,
-        route.mode,
-        route.description,
-        route.trainTemplateLabel ?? '',
-      ]
-        .join(' ')
-        .toLowerCase()
-
+      const haystack = [route.label, route.operator, route.mode, route.description, route.trainTemplateLabel ?? ''].join(' ').toLowerCase()
       return haystack.includes(normalizedQuery)
     })
   }, [allRoutes, query])
 
-  const selectedRoute = useMemo<ParsedRoute | null>(
-    () => allRoutes.find((route) => route.id === selectedRouteId) ?? null,
-    [allRoutes, selectedRouteId],
-  )
+  const selectedRoute = useMemo<ParsedRoute | null>(() => allRoutes.find((route) => route.id === selectedRouteId) ?? null, [allRoutes, selectedRouteId])
   const routeNodeCount = selectedRoute?.stops.length ?? 0
-
   const baseGraph = useMemo(() => buildTransitGraph(selectedRoute, language), [language, selectedRoute])
 
   const nodes = useMemo<CanvasNode[]>(() => {
@@ -126,6 +114,7 @@ export function TransitMapLayout() {
     const selectedNode = nodes.find((node) => node.id === selectedPoiId)
     return selectedNode?.type === 'poi' ? selectedNode.data.label : ''
   }, [nodes, selectedPoiId])
+
   const selectedEdge = useMemo(() => edges.find((edge) => edge.id === selectedEdgeId) ?? null, [edges, selectedEdgeId])
 
   useEffect(() => {
@@ -158,6 +147,38 @@ export function TransitMapLayout() {
     })()
   }, [reactFlowInstance, routeNodeCount, selectedRouteId])
 
+  useEffect(() => {
+    const requestId = latestRequestId.current + 1
+    latestRequestId.current = requestId
+    setIsLoading(true)
+    setLoadError(initialSharedState.error)
+    resetCanvasState()
+
+    void (async () => {
+      try {
+        const bundledFeed = await loadBundledFeed(bundledFeedUrl)
+
+        if (latestRequestId.current !== requestId) {
+          return
+        }
+
+        applyParsedFeed(bundledFeed)
+      } catch (error) {
+        if (latestRequestId.current !== requestId) {
+          return
+        }
+
+        setFeed(null)
+        setSelectedRouteId(null)
+        setLoadError(error instanceof Error ? error.message : text.bundledFeedUnavailable)
+      } finally {
+        if (latestRequestId.current === requestId) {
+          setIsLoading(false)
+        }
+      }
+    })()
+  }, [initialSharedState.error, text.bundledFeedUnavailable])
+
   function resetCanvasState() {
     hasAppliedSharedStateRef.current = false
     setGlobalEdgeStyle('schematic')
@@ -170,6 +191,75 @@ export function TransitMapLayout() {
     poiCounterRef.current = 1
   }
 
+  function applyParsedFeed(parsedFeed: ParsedFeed) {
+    setFeed(parsedFeed)
+    const sharedState = initialSharedState.state
+    const sharedRouteId = sharedState?.selectedRouteIds.find((routeId) => parsedFeed.routes.some((route) => route.id === routeId)) ?? null
+    const nextSelectedRouteId = sharedRouteId ?? parsedFeed.routes[0]?.id ?? null
+
+    setSelectedRouteId(nextSelectedRouteId)
+
+    if (sharedState && !hasAppliedSharedStateRef.current) {
+      setLanguage(sharedState.language)
+      const sharedRoutes = parsedFeed.routes.filter((route) => sharedState.selectedRouteIds.includes(route.id))
+      const selectedRoute = parsedFeed.routes.find((route) => route.id === nextSelectedRouteId)
+      const restoredEdgeCustomizations = Object.fromEntries(sharedState.edgeCustomizations.map(({ id, ...customization }) => [id, customization]))
+      const restoredPoiNodes: POICanvasNode[] = sharedState.poiNodes.map((node) => ({
+        data: {
+          direction: getDirection(sharedState.language),
+          label: node.label,
+          textAlign: getTextAlignment(sharedState.language),
+        },
+        id: node.id,
+        position: { x: node.x, y: node.y },
+        type: 'poi',
+      }))
+      const restoredRoutes = sharedRoutes.length > 0 ? sharedRoutes : selectedRoute ? [selectedRoute] : []
+      const restoredRouteStopIds = restoredRoutes.flatMap((route) => route.stops.map((stop) => stop.id))
+      const availableNodeIds = new Set([...restoredRouteStopIds, ...restoredPoiNodes.map((node) => node.id)])
+      const restoredPoiIdNumbers = restoredPoiNodes.map((node) => Number(node.id.replace('poi-', ''))).filter((value) => Number.isFinite(value))
+      const highestPoiIndex = restoredPoiIdNumbers.length > 0 ? Math.max(...restoredPoiIdNumbers) : 0
+      const routeStopIds = new Set(restoredRouteStopIds)
+      const restoredTransitNodePositions = Object.fromEntries(Object.entries(sharedState.nodePositions).filter(([nodeId]) => routeStopIds.has(nodeId)))
+
+      setTransitNodePositions(restoredTransitNodePositions)
+      setRouteEdgeCustomizations(restoredEdgeCustomizations)
+      setGlobalEdgeStyle(sharedState.globalEdgeStyle)
+      setPoiNodes(restoredPoiNodes)
+      setManualEdges(
+        sharedState.manualEdges
+          .filter((edge) => {
+            if (!availableNodeIds.has(edge.source) || !availableNodeIds.has(edge.target)) {
+              return false
+            }
+
+            const sourceIsPoi = restoredPoiNodes.some((node) => node.id === edge.source)
+            const targetIsPoi = restoredPoiNodes.some((node) => node.id === edge.target)
+
+            return sourceIsPoi !== targetIsPoi
+          })
+          .map((edge, index) => ({
+            data: {
+              customColor: edge.customColor,
+              customStrokeWidth: edge.customStrokeWidth,
+              isManual: true,
+            },
+            id: `shared-edge-${edge.source}-${edge.target}-${index + 1}`,
+            source: edge.source,
+            style: {
+              stroke: edge.customColor ?? '#2563eb',
+              strokeDasharray: '10 6',
+              strokeWidth: edge.customStrokeWidth ?? 3,
+            },
+            target: edge.target,
+            type: 'schematic',
+          })),
+      )
+      poiCounterRef.current = highestPoiIndex + 1
+      hasAppliedSharedStateRef.current = true
+    }
+  }
+
   async function handleFileSelected(file: File | null) {
     if (!file) {
       return
@@ -177,7 +267,6 @@ export function TransitMapLayout() {
 
     const requestId = latestRequestId.current + 1
     latestRequestId.current = requestId
-
     setIsLoading(true)
     setLoadError(null)
     resetCanvasState()
@@ -189,78 +278,7 @@ export function TransitMapLayout() {
         return
       }
 
-      setFeed(parsedFeed)
-      const sharedState = initialSharedState.state
-      const sharedRouteId = sharedState?.selectedRouteIds.find((routeId) => parsedFeed.routes.some((route) => route.id === routeId)) ?? null
-      const nextSelectedRouteId = sharedRouteId ?? parsedFeed.routes[0]?.id ?? null
-
-      setSelectedRouteId(nextSelectedRouteId)
-
-      if (sharedState && !hasAppliedSharedStateRef.current) {
-        setLanguage(sharedState.language)
-        const selectedRoute = parsedFeed.routes.find((route) => route.id === nextSelectedRouteId)
-        const sharedRoutes = parsedFeed.routes.filter((route) => sharedState.selectedRouteIds.includes(route.id))
-        const restoredEdgeCustomizations = Object.fromEntries(
-          sharedState.edgeCustomizations.map(({ id, ...customization }) => [id, customization]),
-        )
-        const restoredPoiNodes: POICanvasNode[] = sharedState.poiNodes.map((node) => ({
-          data: {
-            direction: getDirection(sharedState.language),
-            label: node.label,
-            textAlign: getTextAlignment(sharedState.language),
-          },
-          id: node.id,
-          position: { x: node.x, y: node.y },
-          type: 'poi',
-        }))
-        const restoredRoutes = sharedRoutes.length > 0 ? sharedRoutes : selectedRoute ? [selectedRoute] : []
-        const restoredRouteStopIds = restoredRoutes.flatMap((route) => route.stops.map((stop) => stop.id))
-        const availableNodeIds = new Set([...restoredRouteStopIds, ...restoredPoiNodes.map((node) => node.id)])
-        const restoredPoiIdNumbers = restoredPoiNodes
-          .map((node) => Number(node.id.replace('poi-', '')))
-          .filter((value) => Number.isFinite(value))
-        const highestPoiIndex = restoredPoiIdNumbers.length > 0 ? Math.max(...restoredPoiIdNumbers) : 0
-        const routeStopIds = new Set(restoredRouteStopIds)
-        const restoredTransitNodePositions = Object.fromEntries(
-          Object.entries(sharedState.nodePositions).filter(([nodeId]) => routeStopIds.has(nodeId)),
-        )
-
-        setTransitNodePositions(restoredTransitNodePositions)
-        setRouteEdgeCustomizations(restoredEdgeCustomizations)
-        setGlobalEdgeStyle(sharedState.globalEdgeStyle)
-        setPoiNodes(restoredPoiNodes)
-        setManualEdges(
-          sharedState.manualEdges
-            .filter((edge) => {
-              if (!availableNodeIds.has(edge.source) || !availableNodeIds.has(edge.target)) {
-                return false
-              }
-
-              const sourceIsPoi = restoredPoiNodes.some((node) => node.id === edge.source)
-              const targetIsPoi = restoredPoiNodes.some((node) => node.id === edge.target)
-
-              return sourceIsPoi !== targetIsPoi
-            })
-            .map((edge, index) => ({
-              data: {
-                customColor: edge.customColor,
-                customStrokeWidth: edge.customStrokeWidth,
-                isManual: true,
-              },
-              id: `shared-edge-${edge.source}-${edge.target}-${index + 1}`,
-              source: edge.source,
-              style: {
-                stroke: edge.customColor ?? '#f8fafc',
-                strokeDasharray: '10 6',
-                strokeWidth: edge.customStrokeWidth ?? 3,
-              },
-              target: edge.target,
-              type: 'schematic',
-            })),
-        )
-        poiCounterRef.current = highestPoiIndex + 1
-        hasAppliedSharedStateRef.current = true
-      }
+      applyParsedFeed(parsedFeed)
     } catch (error) {
       if (latestRequestId.current !== requestId) {
         return
@@ -280,9 +298,7 @@ export function TransitMapLayout() {
     const nextRoute = allRoutes.find((route) => route.id === routeId)
     const nextRouteStopIds = new Set(nextRoute?.stops.map((stop) => stop.id) ?? [])
 
-    setTransitNodePositions((currentPositions) =>
-      Object.fromEntries(Object.entries(currentPositions).filter(([stopId]) => nextRouteStopIds.has(stopId))),
-    )
+    setTransitNodePositions((currentPositions) => Object.fromEntries(Object.entries(currentPositions).filter(([stopId]) => nextRouteStopIds.has(stopId))))
     setManualEdges((currentEdges) =>
       currentEdges.filter((edge) => {
         const sourceIsPoi = poiNodes.some((node) => node.id === edge.source)
@@ -381,9 +397,8 @@ export function TransitMapLayout() {
             },
             style: {
               ...edge.style,
-              stroke: nextCustomization.customColor ?? edge.data?.customColor ?? edge.style?.stroke ?? '#f8fafc',
-              strokeWidth:
-                nextCustomization.customStrokeWidth ?? edge.data?.customStrokeWidth ?? edge.style?.strokeWidth ?? 3,
+              stroke: nextCustomization.customColor ?? edge.data?.customColor ?? edge.style?.stroke ?? '#2563eb',
+              strokeWidth: nextCustomization.customStrokeWidth ?? edge.data?.customStrokeWidth ?? edge.style?.strokeWidth ?? 3,
             },
           }
         }),
@@ -485,7 +500,7 @@ export function TransitMapLayout() {
   return (
     <ReactFlowProvider>
       <main
-        className="mx-auto grid min-h-screen w-full max-w-[1800px] gap-6 px-4 py-4 text-start xl:grid-cols-[420px_minmax(0,1fr)] xl:px-6 xl:py-6"
+        className="mx-auto grid min-h-screen w-full max-w-[1800px] gap-6 bg-gray-50 px-4 py-4 text-start text-gray-900 xl:grid-cols-[420px_minmax(0,1fr)] xl:px-6 xl:py-6"
         dir={getDirection(language)}
       >
         <Sidebar
