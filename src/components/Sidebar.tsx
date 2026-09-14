@@ -96,12 +96,13 @@ export function Sidebar({
           <h2 className="text-sm font-semibold text-gray-900">{text.gtfsSource}</h2>
           <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">{text.realDataOnly}</span>
         </div>
-        <p className="text-sm text-gray-600">{text.bundledFeedDescription}</p>
+        <p className="text-sm text-gray-600" id="gtfs-file-help">{text.bundledFeedDescription}</p>
         <label className="block text-sm font-medium text-gray-700" htmlFor="gtfs-file">
           {fileUploadLabel}
         </label>
         <input
           accept=".zip,application/zip"
+          aria-describedby="gtfs-file-help"
           className="block w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 file:mr-4 file:rounded-full file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           id="gtfs-file"
           type="file"

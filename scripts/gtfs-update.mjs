@@ -3,7 +3,7 @@
 import AdmZip from 'adm-zip'
 import axios from 'axios'
 import Papa from 'papaparse'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -446,7 +446,7 @@ async function extractFilesToTempDirectory(buffer) {
       const content = zip.readAsText(entry)
       const destination = join(tempDirectory, fileName)
       await writeFile(destination, content, 'utf8')
-      fileContents.set(fileName, await readFile(destination, 'utf8'))
+      fileContents.set(fileName, content)
     }
 
     return { fileContents, tempDirectory }
