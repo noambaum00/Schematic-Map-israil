@@ -14,10 +14,10 @@ const OPTIONAL_FILES = ['agency.txt', 'translations.txt']
 const STRIPPED_NAME_PATTERNS = [/\bplatform\b/gi, /\bterminal\b/gi, /\bstation\b/gi, /\bstop\b/gi, /\bbay\b/gi, /מסוף/gi, /רציף/gi]
 const textDecoderSpecs = [
   { encoding: 'utf-8', options: { fatal: true } },
-  { encoding: 'utf-16le' },
-  { encoding: 'utf-16be' },
-  { encoding: 'windows-1255' },
-  { encoding: 'windows-1252' },
+  { encoding: 'utf-16le', options: { fatal: true } },
+  { encoding: 'utf-16be', options: { fatal: true } },
+  { encoding: 'windows-1255', options: { fatal: true } },
+  { encoding: 'windows-1252', options: { fatal: true } },
 ]
 
 function normalizeWhitespace(value) {
