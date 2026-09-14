@@ -27,7 +27,13 @@ const textDecoderSpecs = [
   { encoding: 'windows-1252', options: { fatal: true } },
 ]
 
-class GtfsDecodeError extends Error {}
+class GtfsDecodeError extends Error {
+  constructor(message) {
+    super(message)
+    this.name = 'GtfsDecodeError'
+    this.code = 'GTFS_DECODE_ERROR'
+  }
+}
 
 function normalizeWhitespace(value) {
   return value.replace(/\s+/g, ' ').trim()
@@ -594,7 +600,7 @@ function handleOptionalFileError(fileName, error) {
 }
 
 function isDecodeFailure(error) {
-  return error instanceof GtfsDecodeError
+  return error instanceof Error && (error instanceof GtfsDecodeError || error.name === 'GtfsDecodeError' || error.code === 'GTFS_DECODE_ERROR')
 }
 
 async function parseExtractedFile(extractedFiles, fileName, { required = true } = {}) {
