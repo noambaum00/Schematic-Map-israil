@@ -419,6 +419,16 @@ function getPreferredUtf32Encodings(buffer) {
   return []
 }
 
+function formatDecodeErrorReason(error) {
+  if (!error || typeof error !== 'object') {
+    return 'decode error'
+  }
+
+  const errorName = 'name' in error ? String(error.name) : 'Error'
+  const errorMessage = 'message' in error ? String(error.message) : ''
+  return errorMessage ? `${errorName}: ${errorMessage}` : errorName
+}
+
 function decodeUtf32Text(buffer, encoding) {
   if (!utf32EncodingSpecs.includes(encoding)) {
     throw new Error(`Unsupported decoder preference: ${encoding}`)
@@ -478,7 +488,7 @@ function decodeGtfsText(buffer, fileName) {
       fallbackDecodedText ??= decoded
       attemptedEncodings.push(`${encoding} (decoded text headers did not match ${fileName})`)
     } catch (error) {
-      attemptedEncodings.push(`${encoding} (${error && typeof error === 'object' && 'name' in error ? error.name : 'decode error'})`)
+      attemptedEncodings.push(`${encoding} (${formatDecodeErrorReason(error)})`)
       continue
     }
   }
@@ -503,7 +513,7 @@ function decodeGtfsText(buffer, fileName) {
       fallbackDecodedText ??= normalizedDecoded
       attemptedEncodings.push(`${encoding} (decoded text headers did not match ${fileName})`)
     } catch (error) {
-      attemptedEncodings.push(`${encoding} (${error && typeof error === 'object' && 'name' in error ? error.name : 'decode error'})`)
+      attemptedEncodings.push(`${encoding} (${formatDecodeErrorReason(error)})`)
       continue
     }
   }
