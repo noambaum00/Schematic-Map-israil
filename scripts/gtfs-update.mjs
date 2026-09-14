@@ -299,6 +299,10 @@ function matchesExpectedHeaders(fileName, columns) {
   return expectedHeaders.every((header) => availableHeaders.has(header))
 }
 
+function shouldMatchExpectedHeaders(fileName) {
+  return fileName === 'translations.txt' || Object.hasOwn(expectedGtfsHeaders, fileName)
+}
+
 function getCsvDelimiter(text, fileName) {
   const attempts = supportedCsvDelimiters.map((delimiter) => ({
     columns: parseCsvHeaderColumnsWithDelimiter(text, delimiter),
@@ -362,6 +366,7 @@ function getPreferredTextDecoders(buffer) {
 
 function decodeGtfsText(buffer, fileName) {
   const attemptedEncodings = []
+  let fallbackDecodedText = null
 
   for (const { encoding, options } of getPreferredTextDecoders(buffer)) {
     try {
@@ -373,14 +378,42 @@ function decodeGtfsText(buffer, fileName) {
         continue
       }
 
-      return decoded
+      if (!shouldMatchExpectedHeaders(fileName)) {
+        return decoded
+      }
+
+      const delimiter = getCsvDelimiter(decoded, fileName)
+      const columns = parseCsvHeaderColumnsWithDelimiter(decoded, delimiter)
+
+      if (matchesExpectedHeaders(fileName, columns)) {
+        return decoded
+      }
+
+      fallbackDecodedText ??= decoded
+      attemptedEncodings.push(`${encoding} (decoded text headers did not match ${fileName})`)
     } catch (error) {
       attemptedEncodings.push(`${encoding} (${error instanceof Error ? error.message : 'unknown decode error'})`)
       continue
     }
   }
 
+  if (fallbackDecodedText) {
+    return fallbackDecodedText
+  }
+
   throw new GtfsDecodeError(`Unable to decode ${fileName}. Tried: ${attemptedEncodings.join(', ')}`)
+}
+
+function validateRequiredGtfsHeaders(fileName, content, delimiter) {
+  if (!Object.hasOwn(expectedGtfsHeaders, fileName)) {
+    return
+  }
+
+  const headerColumns = parseCsvHeaderColumnsWithDelimiter(content, delimiter)
+
+  if (!matchesExpectedHeaders(fileName, headerColumns)) {
+    throw new Error(`Failed to parse ${fileName}: missing expected GTFS headers.`)
+  }
 }
 
 function parseCsv(content, fileName, delimiter = getCsvDelimiter(content, fileName)) {
@@ -654,6 +687,7 @@ async function parseExtractedFile(extractedFiles, fileName, { required = true } 
   }
 
   const delimiter = getCsvDelimiter(content, fileName)
+  validateRequiredGtfsHeaders(fileName, content, delimiter)
   return parseCsv(content, fileName, delimiter)
 }
 
