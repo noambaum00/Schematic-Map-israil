@@ -17,7 +17,6 @@ const expectedGtfsHeaders = {
   'routes.txt': ['route_id', 'route_type'],
   'stop_times.txt': ['trip_id', 'stop_id', 'stop_sequence'],
   'stops.txt': ['stop_id', 'stop_name', 'stop_lat', 'stop_lon'],
-  'translations.txt': ['translation'],
   'trips.txt': ['route_id', 'trip_id'],
 }
 const textDecoderSpecs = [
