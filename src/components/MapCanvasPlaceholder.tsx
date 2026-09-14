@@ -182,8 +182,8 @@ export function MapCanvasPlaceholder({ activeLanguage, isLoading, route }: MapCa
                           fill="#F8FAFC"
                           fontSize="13"
                           fontWeight="500"
-                          style={{ unicodeBidi: 'plaintext' }}
-                          textAnchor={isRtlLanguage ? 'end' : 'start'}
+                                                    textAnchor={isRtlLanguage ? 'end' : 'start'}
+                          unicodeBidi="plaintext"
                           x={isRtlLanguage ? point.x - 12 : point.x + 12}
                           y={point.y + 34}
                         >

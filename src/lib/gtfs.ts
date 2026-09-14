@@ -165,8 +165,8 @@ function dedupeConsecutiveStops(stopIds: string[]) {
 export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
   const zip = await JSZip.loadAsync(await file.arrayBuffer())
 
+  const agencyEntry = findZipEntry(zip, 'agency.txt')
   const requiredEntries = {
-    agency: ['agency.txt', findZipEntry(zip, 'agency.txt')] as const,
     routes: ['routes.txt', findZipEntry(zip, 'routes.txt')] as const,
     trips: ['trips.txt', findZipEntry(zip, 'trips.txt')] as const,
     stopTimes: ['stop_times.txt', findZipEntry(zip, 'stop_times.txt')] as const,
@@ -180,14 +180,14 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
   }
 
   const [agencyText, routesText, tripsText, stopTimesText, stopsText] = await Promise.all([
-    requiredEntries.agency[1]!.async('text'),
+    agencyEntry?.async('text') ?? Promise.resolve(''),
     requiredEntries.routes[1]!.async('text'),
     requiredEntries.trips[1]!.async('text'),
     requiredEntries.stopTimes[1]!.async('text'),
     requiredEntries.stops[1]!.async('text'),
   ])
 
-  const agencies = parseCsv(agencyText, agencySchema).data
+  const agencies = agencyText ? parseCsv(agencyText, agencySchema).data : []
   const routes = parseCsv(routesText, routeSchema).data
   const trips = parseCsv(tripsText, tripSchema).data
   const stopTimes = parseCsv(stopTimesText, stopTimeSchema).data
@@ -197,13 +197,10 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
   const stopMap = new Map<string, StopRow>()
   const tripsByRoute = new Map<string, TripRow[]>()
   const stopTimesByTrip = new Map<string, StopTimeRow[]>()
+  const singleAgency = agencies.length === 1 ? agencies[0] : null
 
   for (const agency of agencies) {
     agencyMap.set(agency.agency_id || agency.agency_name, agency)
-
-    if (!agency.agency_id) {
-      agencyMap.set('', agency)
-    }
   }
 
   for (const stop of stops) {
@@ -226,7 +223,7 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
     .map((route) => {
       const routeTrips = tripsByRoute.get(route.route_id) ?? []
       const operator =
-        agencyMap.get(route.agency_id)?.agency_name ??
+        (route.agency_id ? agencyMap.get(route.agency_id)?.agency_name : singleAgency?.agency_name) ??
         agencies[0]?.agency_name ??
         (route.route_desc || 'Unknown operator')
 
