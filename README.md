@@ -36,7 +36,7 @@ Then open the app, upload an official MOT GTFS `.zip` archive, add POIs from the
 
 ## GitHub Pages publishing
 
-The repository already includes a GitHub Pages deployment workflow. Local development does not require Pages setup, but publishing still requires the repository Pages settings to use GitHub Actions and the Vite `base` value in `vite.config.ts` to match the repository name.
+The repository already includes a GitHub Pages deployment workflow, and production builds are coupled to the repository-specific Vite `base` value in `vite.config.ts`. Local development does not require Pages setup, but publishing requires the repository Pages settings to use GitHub Actions and the `base` value to match the repository name.
 
 Configured deployment workflow:
 - `.github/workflows/deploy-pages.yml`
@@ -46,7 +46,7 @@ Configured deployment workflow:
 Repository settings required:
 - open **Settings → Pages** in GitHub
 - set **Source** to **GitHub Actions**
-- keep the repository name aligned with the Vite `base` value in `vite.config.ts`
+- keep the repository name aligned with the Vite `base` value in `vite.config.ts`, or change `vite.config.ts` before using a different production hosting path
 
 ## Current GTFS parsing scope
 

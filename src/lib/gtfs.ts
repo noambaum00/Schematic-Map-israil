@@ -83,6 +83,7 @@ export type ParsedRoute = {
 export type ParsedFeed = {
   fileName: string
   agencies: number
+  hubStops: number
   routes: ParsedRoute[]
   stops: number
   trips: number
@@ -318,8 +319,9 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
   return {
     fileName: file.name,
     agencies: agencies.length,
+    hubStops: clusteredStops.hubNodes.length,
     routes: parsedRoutes,
-    stops: clusteredStops.hubNodes.length,
+    stops: stops.length,
     trips: trips.length,
   }
 }

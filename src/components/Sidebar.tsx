@@ -77,7 +77,7 @@ export function Sidebar({
           {isLoading
             ? 'Parsing GTFS archive…'
             : feed
-              ? `Loaded ${feed.fileName} · ${feed.routes.length} routes · ${feed.trips} trips · ${feed.stops} stops`
+              ? `Loaded ${feed.fileName} · ${feed.routes.length} routes · ${feed.trips} trips · ${feed.stops} stops · ${feed.hubStops} hubs`
               : 'No feed loaded yet.'}
         </p>
         {loadError ? <p className="text-sm text-rose-300">{loadError}</p> : null}

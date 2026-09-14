@@ -112,6 +112,11 @@ function getClusterWheelchairStatus(stops: RawStopForHubClustering[]): Wheelchai
   return 'unknown'
 }
 
+function createStableHubId(stops: RawStopForHubClustering[], prefix: 'hub-parent' | 'hub-geo') {
+  const sortedStopIds = stops.map((stop) => stop.stop_id).sort()
+  return `${prefix}-${sortedStopIds.join('-')}`
+}
+
 function createHubNode(hubId: string, stops: RawStopForHubClustering[]): HubNode {
   const constituentStopIds = stops.map((stop) => stop.stop_id)
   const centroidLatitude = stops.reduce((total, stop) => total + stop.stop_lat, 0) / stops.length
@@ -194,7 +199,7 @@ export function clusterStopsIntoTransferHubs(
   const parentStationClusters = buildParentStationClusters(stops)
 
   for (const [parentStationId, clusterStops] of parentStationClusters.entries()) {
-    const hubId = `hub-parent-${parentStationId}`
+    const hubId = parentStationId ? `hub-parent-${parentStationId}` : createStableHubId(clusterStops, 'hub-parent')
     const hubNode = createHubNode(hubId, clusterStops)
 
     hubNodes.push(hubNode)
@@ -214,7 +219,7 @@ export function clusterStopsIntoTransferHubs(
     const { cluster, remainingStops } = buildProximityCluster(seedStop, proximityCandidates, mergeRadiusMeters)
     proximityCandidates = remainingStops
 
-    const hubId = cluster.length > 1 ? `hub-geo-${cluster[0]!.stop_id}` : cluster[0]!.stop_id
+    const hubId = cluster.length > 1 ? createStableHubId(cluster, 'hub-geo') : cluster[0]!.stop_id
     const hubNode = createHubNode(hubId, cluster)
     hubNodes.push(hubNode)
 
