@@ -199,6 +199,7 @@ export function TransitMapLayout() {
       if (sharedState && !hasAppliedSharedStateRef.current) {
         setLanguage(sharedState.language)
         const selectedRoute = parsedFeed.routes.find((route) => route.id === nextSelectedRouteId)
+        const sharedRoutes = parsedFeed.routes.filter((route) => sharedState.selectedRouteIds.includes(route.id))
         const restoredEdgeCustomizations = Object.fromEntries(
           sharedState.edgeCustomizations.map(({ id, ...customization }) => [id, customization]),
         )
@@ -212,15 +213,14 @@ export function TransitMapLayout() {
           position: { x: node.x, y: node.y },
           type: 'poi',
         }))
-        const availableNodeIds = new Set([
-          ...(selectedRoute?.stops.map((stop) => stop.id) ?? []),
-          ...restoredPoiNodes.map((node) => node.id),
-        ])
+        const restoredRoutes = sharedRoutes.length > 0 ? sharedRoutes : selectedRoute ? [selectedRoute] : []
+        const restoredRouteStopIds = restoredRoutes.flatMap((route) => route.stops.map((stop) => stop.id))
+        const availableNodeIds = new Set([...restoredRouteStopIds, ...restoredPoiNodes.map((node) => node.id)])
         const restoredPoiIdNumbers = restoredPoiNodes
           .map((node) => Number(node.id.replace('poi-', '')))
           .filter((value) => Number.isFinite(value))
         const highestPoiIndex = restoredPoiIdNumbers.length > 0 ? Math.max(...restoredPoiIdNumbers) : 0
-        const routeStopIds = new Set(selectedRoute?.stops.map((stop) => stop.id) ?? [])
+        const routeStopIds = new Set(restoredRouteStopIds)
         const restoredTransitNodePositions = Object.fromEntries(
           Object.entries(sharedState.nodePositions).filter(([nodeId]) => routeStopIds.has(nodeId)),
         )

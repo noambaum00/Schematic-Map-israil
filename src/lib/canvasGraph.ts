@@ -166,7 +166,9 @@ export function connectCanvasEdge(
   }
 
   const nextConnectionKey = buildUndirectedConnectionKey(source, target)
-  const hasDuplicateEdge = currentEdges.some((edge) => buildUndirectedConnectionKey(edge.source, edge.target) === nextConnectionKey)
+  const hasDuplicateEdge = currentEdges.some(
+    (edge) => edge.data?.isManual && buildUndirectedConnectionKey(edge.source, edge.target) === nextConnectionKey,
+  )
 
   if (hasDuplicateEdge) {
     return currentEdges
