@@ -12,6 +12,8 @@ type SidebarProps = {
 const languages = ['English', 'עברית', 'العربية'] as const
 
 export function Sidebar({ activeLanguage, onLanguageChange, query, onQueryChange, selectedRoutes }: SidebarProps) {
+  const resultLabel = `${selectedRoutes.length} route${selectedRoutes.length === 1 ? '' : 's'} shown in the current map plan`
+
   return (
     <aside className="flex h-full flex-col gap-6 overflow-y-auto border-b border-white/10 bg-slate-950/70 p-6 backdrop-blur xl:border-b-0 xl:border-r">
       <div className="space-y-3">
@@ -34,6 +36,7 @@ export function Sidebar({ activeLanguage, onLanguageChange, query, onQueryChange
           Search rail, light rail, or bus lines
         </label>
         <input
+          aria-describedby="route-query-status"
           id="route-query"
           className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300"
           placeholder="e.g. A1, Red Line, 480"
@@ -41,6 +44,9 @@ export function Sidebar({ activeLanguage, onLanguageChange, query, onQueryChange
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
         />
+        <p aria-live="polite" className="text-sm text-slate-400" id="route-query-status">
+          {resultLabel}
+        </p>
         <div className="flex flex-wrap gap-2 text-xs text-slate-200">
           {selectedRoutes.map((route) => (
             <span key={route.id} className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
@@ -50,23 +56,24 @@ export function Sidebar({ activeLanguage, onLanguageChange, query, onQueryChange
         </div>
       </section>
 
-      <section className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4">
+      <fieldset className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white">Language</h2>
+          <legend className="text-sm font-semibold text-white">Language</legend>
           <span className="text-xs text-slate-400">RTL/LTR ready</span>
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div aria-label="Interface language" className="grid grid-cols-3 gap-2" role="radiogroup">
           {languages.map((language) => {
             const isActive = language === activeLanguage
             return (
               <button
                 key={language}
-                aria-pressed={isActive}
+                aria-checked={isActive}
                 className={`rounded-2xl border px-3 py-2 text-sm transition ${
                   isActive
                     ? 'border-cyan-300 bg-cyan-300/15 text-white'
                     : 'border-white/10 bg-slate-900 text-slate-300 hover:border-white/30'
                 }`}
+                role="radio"
                 type="button"
                 onClick={() => onLanguageChange(language)}
               >
@@ -75,7 +82,7 @@ export function Sidebar({ activeLanguage, onLanguageChange, query, onQueryChange
             )
           })}
         </div>
-      </section>
+      </fieldset>
 
       <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center justify-between gap-3">
