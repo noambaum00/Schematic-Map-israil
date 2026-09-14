@@ -5,7 +5,9 @@ import {
   MiniMap,
   ReactFlow,
   ReactFlowProvider,
+  type EdgeTypes,
   type Connection,
+  type NodeTypes,
   type OnNodesChange,
   type OnSelectionChangeParams,
   type ReactFlowInstance,
@@ -15,7 +17,9 @@ import { useMemo } from 'react'
 
 import type { CanvasEdge, CanvasNode } from '../lib/canvasGraph'
 import type { ParsedRoute, TransitLanguage } from '../lib/gtfs'
+import { SchematicEdge } from './edges/SchematicEdge'
 import { POINode } from './nodes/POINode'
+import { TransferHubNode } from './nodes/TransferHubNode'
 import { TransitStopNode } from './nodes/TransitStopNode'
 
 type MapCanvasPlaceholderProps = {
@@ -48,9 +52,14 @@ const emptyStates: Record<TransitLanguage, { title: string; description: string 
   },
 }
 
-const nodeTypes = {
+const nodeTypes: NodeTypes = {
+  hub: TransferHubNode,
   poi: POINode,
   transit: TransitStopNode,
+}
+
+const edgeTypes: EdgeTypes = {
+  schematic: SchematicEdge,
 }
 
 function getNodeLabelDirection(activeLanguage: TransitLanguage) {
@@ -91,6 +100,7 @@ function CanvasInner({
         </div>
         <div className="flex flex-wrap gap-2 text-xs text-slate-200">
           <span className="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5">Real GTFS feed</span>
+          <span className="rounded-full border border-violet-400/40 bg-violet-400/10 px-3 py-1.5">Transfer hubs</span>
           <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1.5">POI nodes</span>
           <span className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1.5">SVG export</span>
         </div>
@@ -111,7 +121,8 @@ function CanvasInner({
             <ReactFlow<CanvasNode, CanvasEdge>
               attributionPosition="bottom-left"
               connectionMode={ConnectionMode.Loose}
-              defaultEdgeOptions={{ style: { stroke: '#94a3b8', strokeWidth: 3 }, type: 'smoothstep' }}
+              defaultEdgeOptions={{ style: { stroke: '#94a3b8', strokeWidth: 3 }, type: 'schematic' }}
+              edgeTypes={edgeTypes}
               edges={edges}
               nodeTypes={nodeTypes}
               nodes={nodes}
@@ -121,8 +132,10 @@ function CanvasInner({
               onNodesChange={onNodesChange}
               onSelectionChange={onSelectionChange}
               panOnScroll
+              snapGrid={[20, 20]}
+              snapToGrid
             >
-              <Background color="#1e293b" gap={32} size={1.2} />
+              <Background color="#1e293b" gap={20} size={1.2} />
               <MiniMap
                 className="!bg-slate-950/90"
                 maskColor="rgba(15, 23, 42, 0.75)"
@@ -161,8 +174,8 @@ function CanvasInner({
           <article className="rounded-[1.75rem] border border-white/10 bg-slate-950/60 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">Canvas tips</p>
             <ul className="mt-4 space-y-3 text-sm text-slate-300">
-              <li>• Drag GTFS stations or POI nodes to refine the schematic.</li>
-              <li>• Draw new links by dragging between any visible handles.</li>
+              <li>• Drag GTFS stations, transfer hubs, or POI nodes with 20px grid snapping.</li>
+              <li>• Octilinear edges automatically route with horizontal, vertical, and 45° segments.</li>
               <li>• Select a POI node, then edit its label from the sidebar.</li>
             </ul>
           </article>
@@ -179,7 +192,7 @@ function CanvasInner({
           {route?.trainTemplateLabel ? (
             <article className="rounded-[1.75rem] border border-cyan-400/20 bg-cyan-400/10 p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-100">Train number template</p>
-              <p className="mt-4 text-sm text-cyan-50">Rendered on route edges: {route.trainTemplateLabel}</p>
+              <p className="mt-4 text-sm text-cyan-50">Rendered on the longest octilinear segment: {route.trainTemplateLabel}</p>
             </article>
           ) : null}
         </div>

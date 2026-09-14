@@ -2,9 +2,9 @@
 
 A Vite + React + TypeScript app for generating schematic transit views for Israel's public transportation network.
 
-## Phase 4 status
+## Phase 5 status
 
-This phase adds complex transfer-hub clustering to the GTFS preprocessing pipeline and exposes merged hub nodes to the interactive React Flow canvas.
+This phase upgrades the React Flow rendering to look more like a classic schematic transit diagram, using dedicated transfer-hub nodes, octilinear route edges, and grid-snapped dragging.
 
 ### Implemented now
 - upload and parse a real Israel MOT GTFS zip archive in the browser
@@ -12,11 +12,14 @@ This phase adds complex transfer-hub clustering to the GTFS preprocessing pipeli
 - preprocess GTFS stops into transfer hubs using parent_station hierarchy first and geospatial proximity second
 - remap route stop sequences through a stop-to-hub dictionary before generating graph edges
 - render the selected route as a React Flow graph with draggable transit station and transfer-hub nodes
-- display Israel Railways train-series labels like `2XX` and `4XX` directly on route edges
+- display transfer hubs with a dedicated interchange node style and outside labels
+- render route segments as octilinear edges using only horizontal, vertical, and 45° diagonal segments
+- display Israel Railways train-series labels like `2XX` and `4XX` on the longest route segment of each schematic edge
 - add Point of Interest (POI) nodes at the center of the visible canvas
 - edit the selected POI label from the sidebar
 - manually draw new edges between POI and transit nodes with standard React Flow connections
 - export the full fitted graph as a high-resolution SVG using `html-to-image`
+- snap node dragging to a `20 x 20` grid for cleaner manual schematic adjustments
 - use the included Vite base-path configuration and GitHub Actions workflow for GitHub Pages publishing on pushes to `main`
 
 ## New npm dependencies
@@ -32,7 +35,7 @@ npm install
 npm run dev
 ```
 
-Then open the app, upload an official MOT GTFS `.zip` archive, add POIs from the sidebar, and export the current graph as SVG.
+Then open the app, upload an official MOT GTFS `.zip` archive, drag stations and hubs on the schematic grid, add POIs from the sidebar, and export the current graph as SVG.
 
 ## GitHub Pages publishing
 
@@ -62,3 +65,10 @@ It uses the longest available trip pattern per route as the initial graph source
 ## Export behavior
 
 Before exporting, the app temporarily calls React Flow fit-to-view behavior so the entire graph is inside the viewport bounds. The export utility then captures `.react-flow__viewport` and triggers an automatic `.svg` download.
+
+## Schematic rendering behavior
+
+- regular stops render as compact station nodes
+- clustered transfer hubs render as prominent interchange markers with external labels
+- route edges use a custom octilinear SVG path generator
+- manual node dragging snaps to a `20 x 20` canvas grid

@@ -51,11 +51,12 @@ export const architectureSections: ArchitectureSection[] = [
   },
   {
     title: 'React Flow canvas',
-    summary: 'Render the selected GTFS route as an editable graph instead of a static SVG preview.',
+    summary: 'Render the selected GTFS route as an editable schematic graph instead of a static SVG preview.',
     bullets: [
-      'Map GTFS stops into transit nodes and route segments into labeled React Flow edges.',
+      'Map GTFS stops into regular station nodes and clustered transfer hub nodes with distinct styling.',
+      'Render route segments as octilinear React Flow edges that keep to horizontal, vertical, and 45° diagonals.',
       'Register a distinct POI node type so user-authored landmarks can be styled and edited independently.',
-      'Support manual drag, connect, selection, and export interactions directly on the graph canvas.',
+      'Support grid-snapped drag, manual connect, selection, and export interactions directly on the graph canvas.',
     ],
   },
   {
@@ -114,6 +115,15 @@ export const algorithmPlans: AlgorithmPlan[] = [
       'Convert the center of the visible React Flow pane into flow coordinates before creating a POI node.',
       'Let React Flow handle manual onConnect edges between POI and GTFS nodes.',
       'Fit the graph into view before calling html-to-image on `.react-flow__viewport` so exports include the whole canvas.',
+    ],
+  },
+  {
+    title: 'Octilinear schematic routing',
+    goal: 'Keep rendered route geometry aligned to classic transit-map angles while preserving train labels.',
+    steps: [
+      'Measure the horizontal and vertical offset between each connected node pair.',
+      'Generate a path that uses either a direct segment or a horizontal/vertical segment followed by a 45° diagonal.',
+      'Place the train-series label at the midpoint of the longest path segment so it stays legible.',
     ],
   },
 ]

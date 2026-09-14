@@ -5,9 +5,14 @@ import type { POINodeData } from '../components/nodes/POINode'
 import type { TransitStopNodeData } from '../components/nodes/TransitStopNode'
 
 export type TransitCanvasNode = Node<TransitStopNodeData, 'transit'>
+export type HubCanvasNode = Node<TransitStopNodeData, 'hub'>
 export type POICanvasNode = Node<POINodeData, 'poi'>
-export type CanvasNode = TransitCanvasNode | POICanvasNode
+export type CanvasNode = TransitCanvasNode | HubCanvasNode | POICanvasNode
 export type CanvasEdge = Edge
+
+function isTransitNetworkNode(node: CanvasNode): node is TransitCanvasNode | HubCanvasNode {
+  return node.type === 'transit' || node.type === 'hub'
+}
 
 function getDirection(activeLanguage: TransitLanguage): 'ltr' | 'rtl' {
   return activeLanguage === 'English' ? 'ltr' : 'rtl'
@@ -28,7 +33,7 @@ export function buildTransitGraph(
   const direction = getDirection(activeLanguage)
   const textAlign = getAlignment(activeLanguage)
 
-  const nodes = route.stops.map<TransitCanvasNode>((stop, index) => {
+  const nodes = route.stops.map<TransitCanvasNode | HubCanvasNode>((stop, index) => {
     const perRow = 5
     const row = Math.floor(index / perRow)
     const column = index % perRow
@@ -54,7 +59,7 @@ export function buildTransitGraph(
       },
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
-      type: 'transit',
+      type: stop.isTransferHub ? 'hub' : 'transit',
     }
   })
 
@@ -62,14 +67,10 @@ export function buildTransitGraph(
     animated: false,
     id: `${route.id}-edge-${index}`,
     label: route.mode === 'rail' ? route.trainTemplateLabel ?? undefined : undefined,
-    labelBgBorderRadius: 999,
-    labelBgPadding: [8, 4],
-    labelBgStyle: { fill: '#020617', opacity: 0.92 },
-    labelStyle: { fill: '#e2e8f0', fontSize: 12, fontWeight: 600 },
     source: route.stops[index].id,
-    style: { stroke: route.operatorColor, strokeWidth: 5 },
+    style: { stroke: route.operatorColor, strokeWidth: stop.isTransferHub || route.stops[index].isTransferHub ? 6 : 5 },
     target: stop.id,
-    type: 'smoothstep',
+    type: 'schematic',
   }))
 
   return { edges, nodes }
@@ -83,7 +84,7 @@ export function connectCanvasEdge(connection: Connection, currentEdges: CanvasEd
     return currentEdges
   }
 
-  const connectsPoiAndTransit = [sourceNode.type, targetNode.type].sort().join(':') === 'poi:transit'
+  const connectsPoiAndTransit = (sourceNode.type === 'poi' && isTransitNetworkNode(targetNode)) || (targetNode.type === 'poi' && isTransitNetworkNode(sourceNode))
 
   if (!connectsPoiAndTransit) {
     return currentEdges
@@ -94,7 +95,7 @@ export function connectCanvasEdge(connection: Connection, currentEdges: CanvasEd
       ...connection,
       id: `manual-edge-${connection.source ?? 'unknown'}-${connection.target ?? 'unknown'}-${currentEdges.length + 1}`,
       style: { stroke: '#f8fafc', strokeDasharray: '10 6', strokeWidth: 3 },
-      type: 'smoothstep',
+      type: 'schematic',
     },
     currentEdges,
   )

@@ -167,7 +167,7 @@ export function TransitMapLayout() {
     const nextTransitPositions: Record<string, XYPosition> = {}
 
     for (const node of nextNodes) {
-      if (node.type === 'transit') {
+      if (node.type === 'transit' || node.type === 'hub') {
         nextTransitPositions[node.id] = node.position
       }
     }
