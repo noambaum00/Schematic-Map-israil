@@ -127,7 +127,11 @@ export function Sidebar({
               </button>
             )
           })}
-          {routes.length === 0 ? <p className="text-sm text-slate-500">Load a feed to browse routes.</p> : null}
+          {routes.length === 0 ? (
+            <p className="text-sm text-slate-500">
+              {feed ? 'No routes match the current search.' : 'Load a feed to browse routes.'}
+            </p>
+          ) : null}
         </div>
       </section>
 

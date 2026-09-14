@@ -13,6 +13,8 @@ type Point = {
   y: number
 }
 
+const rtlLanguages = new Set<TransitLanguage>(['עברית', 'العربية'])
+
 const emptyStates: Record<TransitLanguage, { title: string; description: string }> = {
   English: {
     title: 'Upload a GTFS zip to start',
@@ -64,6 +66,7 @@ function getSegmentLabel(route: ParsedRoute) {
 export function MapCanvasPlaceholder({ activeLanguage, isLoading, route }: MapCanvasPlaceholderProps) {
   const points = useMemo(() => (route ? buildPoints(route.stops.length) : []), [route])
   const segmentLabel = route ? getSegmentLabel(route) : null
+  const isRtlLanguage = rtlLanguages.has(activeLanguage)
 
   return (
     <section className="relative flex min-h-[700px] flex-1 flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900/80">
@@ -174,7 +177,16 @@ export function MapCanvasPlaceholder({ activeLanguage, isLoading, route }: MapCa
                       <g key={stop.id}>
                         <circle cx={point.x} cy={point.y} fill="#0F172A" r="17" stroke="#E2E8F0" strokeWidth="4" />
                         <circle cx={point.x} cy={point.y} fill={route.operatorColor} r="8" />
-                        <text fill="#F8FAFC" fontSize="13" fontWeight="500" x={point.x} y={point.y + 34}>
+                        <text
+                          direction={isRtlLanguage ? 'rtl' : 'ltr'}
+                          fill="#F8FAFC"
+                          fontSize="13"
+                          fontWeight="500"
+                          style={{ unicodeBidi: 'plaintext' }}
+                          textAnchor={isRtlLanguage ? 'end' : 'start'}
+                          x={isRtlLanguage ? point.x - 12 : point.x + 12}
+                          y={point.y + 34}
+                        >
                           {getStopName(route, index)}
                         </text>
                       </g>
@@ -208,7 +220,7 @@ export function MapCanvasPlaceholder({ activeLanguage, isLoading, route }: MapCa
             <article className="rounded-[1.75rem] border border-white/10 bg-slate-950/60 p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">Deployment</p>
               <p className="mt-4 text-sm text-slate-300">
-                This build is configured for GitHub Pages with the repository base path set to <code>/Schematic-Map-israil/</code>.
+                This build is configured for repository-based GitHub Pages deployment through the shared Vite Pages setup.
               </p>
             </article>
           </div>
