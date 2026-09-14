@@ -233,7 +233,11 @@ function clusterStopsIntoTransferHubs(stops, mergeRadiusMeters = 200) {
 }
 
 function getHeaderLine(text) {
-  return text.replace(/^\uFEFF/, '').split(/\r?\n/u, 1)[0]?.trim() ?? ''
+  return stripLeadingBom(text).split(/\r?\n/u, 1)[0]?.trim() ?? ''
+}
+
+function stripLeadingBom(text) {
+  return text.replace(/^\uFEFF/, '')
 }
 
 function getTextDecoderSpec(encoding) {
@@ -265,7 +269,7 @@ function isLikelyGtfsCsv(text, fileName) {
   }
 
   const columns = headerLine.split(delimiter).map((value) => value.trim()).filter(Boolean)
-  return columns.length >= 2 && (text.includes('\n') || text.includes('\r'))
+  return columns.length >= 2
 }
 
 function getPreferredTextDecoders(buffer) {
@@ -320,7 +324,7 @@ function decodeGtfsText(buffer, fileName) {
   for (const { encoding, options } of getPreferredTextDecoders(buffer)) {
     try {
       const decoder = new TextDecoder(encoding, options)
-      const decoded = decoder.decode(buffer)
+      const decoded = stripLeadingBom(decoder.decode(buffer))
 
       if (!isLikelyGtfsCsv(decoded, fileName)) {
         attemptedEncodings.push(`${encoding} (decoded text did not match GTFS CSV headers)`)
@@ -338,7 +342,7 @@ function decodeGtfsText(buffer, fileName) {
 }
 
 function parseCsv(content, fileName) {
-  const parsed = Papa.parse(content.replace(/^\uFEFF/, ''), {
+  const parsed = Papa.parse(stripLeadingBom(content), {
     delimiter: getCsvDelimiter(content, fileName),
     header: true,
     skipEmptyLines: true,
