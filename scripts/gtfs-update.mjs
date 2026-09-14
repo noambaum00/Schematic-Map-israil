@@ -306,7 +306,7 @@ function matchesExpectedHeaders(fileName, columns) {
   const expectedHeaders = expectedGtfsHeaders[fileName]
 
   if (!expectedHeaders) {
-    return availableHeaders.size >= 1
+    return true
   }
 
   return expectedHeaders.every((header) => availableHeaders.has(header))
