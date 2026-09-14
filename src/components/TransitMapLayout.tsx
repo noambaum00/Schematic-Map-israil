@@ -1,5 +1,6 @@
 import {
   applyNodeChanges,
+  ReactFlowProvider,
   type Connection,
   type OnSelectionChangeParams,
   type ReactFlowInstance,
@@ -165,10 +166,17 @@ export function TransitMapLayout() {
       setFeed(parsedFeed)
       const sharedState = initialSharedState.state
       const sharedRouteId = sharedState?.selectedRouteIds.find((routeId) => parsedFeed.routes.some((route) => route.id === routeId)) ?? null
+      const nextSelectedRouteId = sharedRouteId ?? parsedFeed.routes[0]?.id ?? null
 
-      setSelectedRouteId(sharedRouteId ?? parsedFeed.routes[0]?.id ?? null)
+      setSelectedRouteId(nextSelectedRouteId)
 
       if (sharedState && !hasAppliedSharedStateRef.current) {
+        const selectedRoute = parsedFeed.routes.find((route) => route.id === nextSelectedRouteId)
+        const availableNodeIds = new Set([
+          ...(selectedRoute?.stops.map((stop) => stop.id) ?? []),
+          ...sharedState.poiNodes.map((node) => node.id),
+        ])
+
         setTransitNodePositions(sharedState.nodePositions)
         setPoiNodes(
           sharedState.poiNodes.map((node) => ({
@@ -183,13 +191,15 @@ export function TransitMapLayout() {
           })),
         )
         setManualEdges(
-          sharedState.manualEdges.map((edge, index) => ({
-            id: `shared-edge-${edge.source}-${edge.target}-${index + 1}`,
-            source: edge.source,
-            style: { stroke: '#f8fafc', strokeDasharray: '10 6', strokeWidth: 3 },
-            target: edge.target,
-            type: 'schematic',
-          })),
+          sharedState.manualEdges
+            .filter((edge) => availableNodeIds.has(edge.source) && availableNodeIds.has(edge.target))
+            .map((edge, index) => ({
+              id: `shared-edge-${edge.source}-${edge.target}-${index + 1}`,
+              source: edge.source,
+              style: { stroke: '#f8fafc', strokeDasharray: '10 6', strokeWidth: 3 },
+              target: edge.target,
+              type: 'schematic',
+            })),
         )
         hasAppliedSharedStateRef.current = true
       }
@@ -209,7 +219,6 @@ export function TransitMapLayout() {
   }
 
   function handleRouteSelect(routeId: string) {
-    resetCanvasState()
     setSelectedRouteId(routeId)
     setExportError(null)
     setLoadError(null)
@@ -343,45 +352,47 @@ export function TransitMapLayout() {
   }
 
   return (
-    <main
-      className="mx-auto grid min-h-screen w-full max-w-[1800px] gap-6 px-4 py-4 text-start xl:grid-cols-[420px_minmax(0,1fr)] xl:px-6 xl:py-6"
-      dir={getDirection(language)}
-    >
-      <Sidebar
-        activeLanguage={language}
-        exportError={exportError}
-        feed={feed}
-        isExporting={isExporting}
-        isSharing={isSharing}
-        isLoading={isLoading}
-        loadError={loadError}
-        poiLabel={selectedPoiLabel}
-        query={query}
-        routes={filteredRoutes}
-        selectedRouteId={selectedRouteId}
-        shareError={shareError}
-        shareMessage={shareMessage ?? (initialSharedState.state && !feed ? text.loadFeedToRestoreSharedMap : null)}
-        onAddPoi={handleAddPoi}
-        onExportSvg={handleExportSvg}
-        onFileSelected={handleFileSelected}
-        onLanguageChange={setLanguage}
-        onPoiLabelChange={handlePoiLabelChange}
-        onQueryChange={setQuery}
-        onRouteSelect={handleRouteSelect}
-        onShareMap={handleShareMap}
-      />
-      <MapCanvasPlaceholder
-        activeLanguage={language}
-        edges={edges}
-        isLoading={isLoading}
-        nodes={nodes}
-        route={selectedRoute}
-        wrapperRef={wrapperRef}
-        onConnect={handleConnect}
-        onInit={setReactFlowInstance}
-        onNodesChange={handleNodesChange}
-        onSelectionChange={handleSelectionChange}
-      />
-    </main>
+    <ReactFlowProvider>
+      <main
+        className="mx-auto grid min-h-screen w-full max-w-[1800px] gap-6 px-4 py-4 text-start xl:grid-cols-[420px_minmax(0,1fr)] xl:px-6 xl:py-6"
+        dir={getDirection(language)}
+      >
+        <Sidebar
+          activeLanguage={language}
+          exportError={exportError}
+          feed={feed}
+          isExporting={isExporting}
+          isSharing={isSharing}
+          isLoading={isLoading}
+          loadError={loadError}
+          poiLabel={selectedPoiLabel}
+          query={query}
+          routes={filteredRoutes}
+          selectedRouteId={selectedRouteId}
+          shareError={shareError}
+          shareMessage={shareMessage ?? (initialSharedState.state && !feed ? text.loadFeedToRestoreSharedMap : null)}
+          onAddPoi={handleAddPoi}
+          onExportSvg={handleExportSvg}
+          onFileSelected={handleFileSelected}
+          onLanguageChange={setLanguage}
+          onPoiLabelChange={handlePoiLabelChange}
+          onQueryChange={setQuery}
+          onRouteSelect={handleRouteSelect}
+          onShareMap={handleShareMap}
+        />
+        <MapCanvasPlaceholder
+          activeLanguage={language}
+          edges={edges}
+          isLoading={isLoading}
+          nodes={nodes}
+          route={selectedRoute}
+          wrapperRef={wrapperRef}
+          onConnect={handleConnect}
+          onInit={setReactFlowInstance}
+          onNodesChange={handleNodesChange}
+          onSelectionChange={handleSelectionChange}
+        />
+      </main>
+    </ReactFlowProvider>
   )
 }

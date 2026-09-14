@@ -39,7 +39,7 @@ export const interfaceText = {
     poiDescription: 'Create a POI, click it on the canvas, then edit its label here.',
     poiNodes: 'POI nodes',
     realDataOnly: 'Real data only',
-    resultLabel: '{count} route{plural} shown from the loaded GTFS feed',
+    resultLabel: '{count} routes shown from the loaded GTFS feed',
     routeMetadata: 'Route metadata',
     searchAndSelection: 'Search & selection',
     searchPlaceholder: 'e.g. A1, Red Line, 480',

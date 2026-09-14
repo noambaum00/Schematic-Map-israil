@@ -52,9 +52,10 @@ export function Sidebar({
   onQueryChange,
 }: SidebarProps) {
   const text = interfaceText[activeLanguage]
-  const resultLabel = text.resultLabel
-    .replace('{count}', String(routes.length))
-    .replace('{plural}', routes.length === 1 ? '' : activeLanguage === 'English' ? 's' : activeLanguage === 'עברית' ? 'ים' : 'وط')
+  const resultLabel =
+    activeLanguage === 'English'
+      ? `${routes.length} route${routes.length === 1 ? '' : 's'} shown from the loaded GTFS feed`
+      : text.resultLabel.replace('{count}', String(routes.length))
   const hasSelectedPoi = poiLabel.length > 0
 
   return (

@@ -4,7 +4,6 @@ import {
   Controls,
   MiniMap,
   ReactFlow,
-  ReactFlowProvider,
   type EdgeTypes,
   type Connection,
   type NodeTypes,
@@ -210,9 +209,5 @@ function CanvasInner({
 }
 
 export function MapCanvasPlaceholder(props: MapCanvasPlaceholderProps) {
-  return (
-    <ReactFlowProvider>
-      <CanvasInner {...props} />
-    </ReactFlowProvider>
-  )
+  return <CanvasInner {...props} />
 }

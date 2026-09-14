@@ -115,7 +115,8 @@ export function buildShareableMapUrl(state: ShareableMapState) {
   const url = new URL(window.location.href)
   const encodedState = compressToEncodedURIComponent(JSON.stringify(state))
 
-  url.searchParams.delete('state')
+  url.search = ''
+  url.hash = ''
   url.hash = `/?state=${encodedState}`
 
   return url.toString()
