@@ -3,7 +3,8 @@
 import AdmZip from 'adm-zip'
 import axios from 'axios'
 import Papa from 'papaparse'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { createReadStream } from 'node:fs'
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
@@ -24,9 +25,11 @@ const textDecoderSpecs = [
   { encoding: 'utf-8', options: { fatal: true } },
   { encoding: 'utf-16le', options: { fatal: true } },
   { encoding: 'utf-16be', options: { fatal: true } },
-  { encoding: 'windows-1255', options: { fatal: true } },
-  { encoding: 'windows-1252', options: { fatal: true } },
+  { encoding: 'windows-1255', options: { fatal: false } },
+  { encoding: 'windows-1252', options: { fatal: false } },
 ]
+const utf32EncodingSpecs = ['utf-32le', 'utf-32be']
+const DEFAULT_STOP_TIMES_STREAM_THRESHOLD_BYTES = 256 * 1024 * 1024
 
 class GtfsDecodeError extends Error {
   constructor(message) {
@@ -263,11 +266,17 @@ function getTextDecoderSpec(encoding) {
 }
 
 function parseCsvHeaderColumnsWithDelimiter(text, delimiter) {
-  const parsed = Papa.parse(stripLeadingBom(text), {
-    delimiter,
-    preview: 1,
-    skipEmptyLines: true,
-  })
+  let parsed
+
+  try {
+    parsed = Papa.parse(stripLeadingBom(text), {
+      delimiter,
+      preview: 1,
+      skipEmptyLines: true,
+    })
+  } catch {
+    return []
+  }
 
   if (parsed.errors.length > 0) {
     return []
@@ -364,19 +373,108 @@ function getPreferredTextDecoders(buffer) {
   return textDecoderSpecs
 }
 
+function getPreferredUtf32Encodings(buffer) {
+  if (buffer.length < 4) {
+    return []
+  }
+
+  const leadingBytes = buffer.subarray(0, 4)
+
+  if (leadingBytes[0] === 0xff && leadingBytes[1] === 0xfe && leadingBytes[2] === 0x00 && leadingBytes[3] === 0x00) {
+    return ['utf-32le', 'utf-32be']
+  }
+
+  if (leadingBytes[0] === 0x00 && leadingBytes[1] === 0x00 && leadingBytes[2] === 0xfe && leadingBytes[3] === 0xff) {
+    return ['utf-32be', 'utf-32le']
+  }
+
+  const sampleLength = Math.min(buffer.length - (buffer.length % 4), 512)
+
+  if (sampleLength < 16) {
+    return []
+  }
+
+  let utf32leZeroDensity = 0
+  let utf32beZeroDensity = 0
+
+  for (let index = 0; index < sampleLength; index += 4) {
+    if (buffer[index + 1] === 0x00) utf32leZeroDensity += 1
+    if (buffer[index + 2] === 0x00) utf32leZeroDensity += 1
+    if (buffer[index + 3] === 0x00) utf32leZeroDensity += 1
+    if (buffer[index] === 0x00) utf32beZeroDensity += 1
+    if (buffer[index + 1] === 0x00) utf32beZeroDensity += 1
+    if (buffer[index + 2] === 0x00) utf32beZeroDensity += 1
+  }
+
+  const totalTripletBytes = (sampleLength / 4) * 3
+  const utf32leRatio = utf32leZeroDensity / totalTripletBytes
+  const utf32beRatio = utf32beZeroDensity / totalTripletBytes
+
+  if (utf32leRatio >= 0.8 && utf32leRatio >= utf32beRatio) {
+    return ['utf-32le', 'utf-32be']
+  }
+
+  if (utf32beRatio >= 0.8 && utf32beRatio > utf32leRatio) {
+    return ['utf-32be', 'utf-32le']
+  }
+
+  return []
+}
+
+function formatDecodeErrorReason(error) {
+  if (!error || typeof error !== 'object') {
+    return 'decode error'
+  }
+
+  const errorName = 'name' in error ? String(error.name) : 'Error'
+  const errorMessage = 'message' in error ? String(error.message) : ''
+  return errorMessage ? `${errorName}: ${errorMessage}` : errorName
+}
+
+function decodeUtf32Text(buffer, encoding) {
+  if (!utf32EncodingSpecs.includes(encoding)) {
+    throw new Error(`Unsupported decoder preference: ${encoding}`)
+  }
+
+  const littleEndian = encoding === 'utf-32le'
+  const startIndex =
+    littleEndian && buffer[0] === 0xff && buffer[1] === 0xfe && buffer[2] === 0x00 && buffer[3] === 0x00
+      ? 4
+      : !littleEndian && buffer[0] === 0x00 && buffer[1] === 0x00 && buffer[2] === 0xfe && buffer[3] === 0xff
+        ? 4
+        : 0
+  const byteLength = buffer.length - startIndex
+
+  if (byteLength <= 0 || byteLength % 4 !== 0) {
+    throw new TypeError('Invalid UTF-32 byte length.')
+  }
+
+  let decoded = ''
+
+  for (let index = startIndex; index < buffer.length; index += 4) {
+    const codePoint = littleEndian
+      ? buffer[index] | (buffer[index + 1] << 8) | (buffer[index + 2] << 16) | (buffer[index + 3] << 24)
+      : buffer[index + 3] | (buffer[index + 2] << 8) | (buffer[index + 1] << 16) | (buffer[index] << 24)
+
+    const unsignedCodePoint = codePoint >>> 0
+
+    if (unsignedCodePoint > 0x10ffff || (unsignedCodePoint >= 0xd800 && unsignedCodePoint <= 0xdfff)) {
+      throw new TypeError('Invalid UTF-32 code point.')
+    }
+
+    decoded += String.fromCodePoint(unsignedCodePoint)
+  }
+
+  return decoded
+}
+
 function decodeGtfsText(buffer, fileName) {
   const attemptedEncodings = []
   let fallbackDecodedText = null
 
-  for (const { encoding, options } of getPreferredTextDecoders(buffer)) {
+  for (const encoding of getPreferredUtf32Encodings(buffer)) {
     try {
-      const decoder = new TextDecoder(encoding, options)
-      const decoded = stripLeadingBom(decoder.decode(buffer))
-
-      if (decoded.includes('\u0000')) {
-        attemptedEncodings.push(`${encoding} (decoded text still contained NUL bytes)`)
-        continue
-      }
+      const decoded = stripLeadingBom(decodeUtf32Text(buffer, encoding))
 
       if (!shouldMatchExpectedHeaders(fileName)) {
         return decoded
@@ -392,13 +490,34 @@ function decodeGtfsText(buffer, fileName) {
       fallbackDecodedText ??= decoded
       attemptedEncodings.push(`${encoding} (decoded text headers did not match ${fileName})`)
     } catch (error) {
-      attemptedEncodings.push(`${encoding} (${error && typeof error === 'object' && 'name' in error ? error.name : 'decode error'})`)
+      attemptedEncodings.push(`${encoding} (${formatDecodeErrorReason(error)})`)
       continue
     }
   }
 
-  if (fallbackDecodedText && shouldMatchExpectedHeaders(fileName)) {
-    throw new Error(`Failed to parse ${fileName}: missing expected GTFS headers.`)
+  for (const { encoding, options } of getPreferredTextDecoders(buffer)) {
+    try {
+      const decoder = new TextDecoder(encoding, options)
+      const decoded = stripLeadingBom(decoder.decode(buffer))
+      const normalizedDecoded = decoded.includes('\u0000') ? decoded.split('\u0000').join('') : decoded
+
+      if (!shouldMatchExpectedHeaders(fileName)) {
+        return normalizedDecoded
+      }
+
+      const delimiter = getCsvDelimiter(normalizedDecoded, fileName)
+      const columns = parseCsvHeaderColumnsWithDelimiter(normalizedDecoded, delimiter)
+
+      if (matchesExpectedHeaders(fileName, columns)) {
+        return normalizedDecoded
+      }
+
+      fallbackDecodedText ??= normalizedDecoded
+      attemptedEncodings.push(`${encoding} (decoded text headers did not match ${fileName})`)
+    } catch (error) {
+      attemptedEncodings.push(`${encoding} (${formatDecodeErrorReason(error)})`)
+      continue
+    }
   }
 
   if (fallbackDecodedText) {
@@ -406,9 +525,7 @@ function decodeGtfsText(buffer, fileName) {
   }
 
   const attemptsSummary = attemptedEncodings.join(', ') || 'no decoders produced usable text'
-  throw new GtfsDecodeError(
-    process.env.GTFS_DEBUG_DECODING === '1' ? `Unable to decode ${fileName}. Tried: ${attemptsSummary}` : `Unable to decode ${fileName}.`
-  )
+  throw new GtfsDecodeError(`Unable to decode ${fileName}. Tried: ${attemptsSummary}`)
 }
 
 function validateParsedGtfsHeaders(fileName, content, delimiter) {
@@ -436,6 +553,180 @@ function parseCsv(content, fileName, delimiter = getCsvDelimiter(content, fileNa
   }
 
   return parsed.data
+}
+
+function getStopTimesStreamThresholdBytes() {
+  const configuredThreshold = Number(process.env.GTFS_STOP_TIMES_STREAM_THRESHOLD_BYTES ?? DEFAULT_STOP_TIMES_STREAM_THRESHOLD_BYTES)
+  return Number.isFinite(configuredThreshold) && configuredThreshold > 0 ? configuredThreshold : DEFAULT_STOP_TIMES_STREAM_THRESHOLD_BYTES
+}
+
+function projectStopTimeRow(row) {
+  return {
+    stop_id: row.stop_id ?? '',
+    stop_sequence: row.stop_sequence ?? '',
+    trip_id: row.trip_id ?? '',
+  }
+}
+
+async function isUtf8StreamDecodable(filePath) {
+  const utf8Decoder = new TextDecoder('utf-8', { fatal: true })
+  const stream = createReadStream(filePath)
+
+  try {
+    for await (const chunk of stream) {
+      utf8Decoder.decode(chunk, { stream: true })
+    }
+
+    utf8Decoder.decode()
+    return true
+  } catch {
+    return false
+  } finally {
+    stream.destroy()
+  }
+}
+
+async function parseStopTimesInMemory(filePath) {
+  const content = decodeGtfsText(await readFile(filePath), 'stop_times.txt')
+  const delimiter = getCsvDelimiter(content, 'stop_times.txt')
+  validateParsedGtfsHeaders('stop_times.txt', content, delimiter)
+  return parseCsv(content, 'stop_times.txt', delimiter).map((row) => projectStopTimeRow(row))
+}
+
+async function forEachStopTimeRow(filePath, onRow) {
+  const fileStats = await stat(filePath)
+
+  if (fileStats.size <= getStopTimesStreamThresholdBytes()) {
+    const stopTimes = await parseStopTimesInMemory(filePath)
+
+    for (const stopTime of stopTimes) {
+      onRow(stopTime)
+    }
+
+    return
+  }
+
+  if (!(await isUtf8StreamDecodable(filePath))) {
+    const stopTimes = await parseStopTimesInMemory(filePath)
+
+    for (const stopTime of stopTimes) {
+      onRow(stopTime)
+    }
+
+    return
+  }
+
+  const stream = createReadStream(filePath, { encoding: 'utf8' })
+  const csvStream = Papa.parse(Papa.NODE_STREAM_INPUT, {
+    delimiter: '',
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: (header) => stripLeadingBom(String(header).trim()),
+  })
+  let headersValidated = false
+
+  return new Promise((resolve, reject) => {
+    let settled = false
+    const fail = (error) => {
+      if (settled) {
+        return
+      }
+
+      settled = true
+      reject(error)
+    }
+    const validateHeaders = (headers) => {
+      if (headersValidated) {
+        return true
+      }
+
+      if (!matchesExpectedHeaders('stop_times.txt', headers)) {
+        fail(new Error('Failed to parse stop_times.txt: missing expected GTFS headers.'))
+        stream.destroy()
+        return false
+      }
+
+      headersValidated = true
+      return true
+    }
+
+    csvStream.on('headers', (headers) => {
+      validateHeaders(headers.map((header) => stripLeadingBom(String(header).trim())))
+    })
+
+    csvStream.on('data', (row) => {
+      if (!validateHeaders(Object.keys(row))) {
+        return
+      }
+
+      onRow(projectStopTimeRow(row))
+    })
+
+    csvStream.on('error', (error) => fail(new Error(`Failed to parse stop_times.txt: ${error.message}`)))
+    csvStream.on('finish', () => {
+      if (!headersValidated) {
+        fail(new Error('Failed to parse stop_times.txt: missing expected GTFS headers.'))
+        return
+      }
+
+      if (settled) {
+        return
+      }
+
+      settled = true
+      resolve()
+    })
+
+    stream.pipe(csvStream)
+  })
+}
+
+async function parseStopTimesFile(filePath) {
+  const stopTimes = []
+  await forEachStopTimeRow(filePath, (stopTime) => {
+    stopTimes.push(stopTime)
+  })
+  return stopTimes
+}
+
+async function buildRepresentativeTripsFromStopTimes(filePath, tripToRouteMap) {
+  const representativeTrips = new Map()
+  const stopSequencesByTrip = new Map()
+
+  await forEachStopTimeRow(filePath, (stopTime) => {
+    const routeId = tripToRouteMap.get(stopTime.trip_id)
+
+    if (!routeId) {
+      return
+    }
+    const tripStops = stopSequencesByTrip.get(stopTime.trip_id) ?? { routeId, stops: [] }
+    tripStops.stops.push({
+      stop_id: stopTime.stop_id,
+      stop_sequence: Number(stopTime.stop_sequence ?? 0),
+    })
+    stopSequencesByTrip.set(stopTime.trip_id, tripStops)
+  })
+
+  for (const [tripId, tripData] of stopSequencesByTrip.entries()) {
+    if (!tripData.routeId || tripData.stops.length < 2) {
+      continue
+    }
+
+    const orderedStops = tripData.stops
+      .sort((left, right) => left.stop_sequence - right.stop_sequence)
+      .map((stop) => stop.stop_id)
+      .filter(Boolean)
+    const existingRepresentative = representativeTrips.get(tripData.routeId)
+
+    if (!existingRepresentative || orderedStops.length > existingRepresentative.stopIds.length) {
+      representativeTrips.set(tripData.routeId, {
+        stopIds: orderedStops,
+        tripId,
+      })
+    }
+  }
+
+  return representativeTrips
 }
 
 function findZipEntry(zip, fileName) {
@@ -680,10 +971,25 @@ async function parseExtractedFile(extractedFiles, fileName, { required = true } 
     return null
   }
 
-  let content
-
   try {
-    content = decodeGtfsText(await readFile(filePath), fileName)
+    if (fileName === 'stop_times.txt') {
+      return await parseStopTimesFile(filePath)
+    }
+
+    const content = decodeGtfsText(await readFile(filePath), fileName)
+    const delimiter = getCsvDelimiter(content, fileName)
+
+    if (!required && fileName === 'translations.txt') {
+      const headerColumns = parseCsvHeaderColumnsWithDelimiter(content, delimiter)
+
+      if (!matchesExpectedHeaders(fileName, headerColumns)) {
+        handleOptionalFileError(fileName, new Error(`Failed to parse ${fileName}: missing expected GTFS headers.`))
+        return null
+      }
+    }
+
+    validateParsedGtfsHeaders(fileName, content, delimiter)
+    return parseCsv(content, fileName, delimiter)
   } catch (error) {
     if (!required && isDecodeFailure(error)) {
       handleOptionalFileError(fileName, error)
@@ -692,24 +998,20 @@ async function parseExtractedFile(extractedFiles, fileName, { required = true } 
 
     throw error
   }
-
-  const delimiter = getCsvDelimiter(content, fileName)
-  validateParsedGtfsHeaders(fileName, content, delimiter)
-  return parseCsv(content, fileName, delimiter)
 }
 
 async function buildTransitGraphPayload(extractedFiles) {
   const agencies = (await parseExtractedFile(extractedFiles, 'agency.txt', { required: false })) ?? []
   const routes = (await parseExtractedFile(extractedFiles, 'routes.txt')) ?? []
   const trips = (await parseExtractedFile(extractedFiles, 'trips.txt')) ?? []
-  const stopTimes = (await parseExtractedFile(extractedFiles, 'stop_times.txt')) ?? []
   const stops = (await parseExtractedFile(extractedFiles, 'stops.txt')) ?? []
   const translations = (await parseExtractedFile(extractedFiles, 'translations.txt', { required: false })) ?? []
   const translationMap = buildTranslationMap(translations)
 
   const agencyMap = new Map()
+  const tripsById = new Map()
   const tripsByRoute = new Map()
-  const stopTimesByTrip = new Map()
+  const tripToRouteMap = new Map()
   const clusteredStops = clusterStopsIntoTransferHubs(stops.map((stop) => buildClusterableStop(stop, translationMap)))
   const clusteredStopMap = new Map(clusteredStops.hubNodes.map((stop) => [stop.id, stop]))
   const singleAgency = agencies.length === 1 ? agencies[0] : null
@@ -724,20 +1026,20 @@ async function buildTransitGraphPayload(extractedFiles) {
       continue
     }
 
+    tripsById.set(trip.trip_id, trip)
+    tripToRouteMap.set(trip.trip_id, trip.route_id)
     const routeTrips = tripsByRoute.get(trip.route_id) ?? []
     routeTrips.push(trip)
     tripsByRoute.set(trip.route_id, routeTrips)
   }
 
-  for (const stopTime of stopTimes) {
-    if (!stopTime.trip_id || !stopTime.stop_id) {
-      continue
-    }
+  const stopTimesPath = extractedFiles.get('stop_times.txt')
 
-    const tripStops = stopTimesByTrip.get(stopTime.trip_id) ?? []
-    tripStops.push(stopTime)
-    stopTimesByTrip.set(stopTime.trip_id, tripStops)
+  if (!stopTimesPath) {
+    throw new Error('Missing stop_times.txt in the extracted GTFS archive.')
   }
+
+  const representativeTripsByRoute = await buildRepresentativeTripsFromStopTimes(stopTimesPath, tripToRouteMap)
 
   const parsedRoutes = routes
     .map((route) => {
@@ -752,19 +1054,9 @@ async function buildTransitGraphPayload(extractedFiles) {
         route.route_desc ??
         'Unknown operator'
 
-      let representativeTrip = null
-      let representativeStopIds = []
-
-      for (const trip of routeTrips) {
-        const orderedStops = [...(stopTimesByTrip.get(trip.trip_id) ?? [])]
-          .sort((left, right) => Number(left.stop_sequence ?? 0) - Number(right.stop_sequence ?? 0))
-          .map((stopTime) => stopTime.stop_id)
-
-        if (orderedStops.length > representativeStopIds.length) {
-          representativeTrip = trip
-          representativeStopIds = orderedStops
-        }
-      }
+      const representative = representativeTripsByRoute.get(route.route_id)
+      const representativeTrip = representative ? tripsById.get(representative.tripId) ?? null : null
+      const representativeStopIds = representative?.stopIds ?? []
 
       if (!representativeTrip || representativeStopIds.length < 2) {
         return null
