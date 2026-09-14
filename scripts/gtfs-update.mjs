@@ -375,12 +375,13 @@ function buildClusterableStop(stop, translationMap) {
 
 function getOperatorColor(operatorName) {
   const normalizedName = String(operatorName ?? '').toLowerCase()
+  const isNtaOperator = /\bdankal\b/.test(normalizedName) || /\bnta\b/.test(normalizedName) || /נת["”״']?ע/.test(String(operatorName ?? '')) || normalizedName.includes('light rail')
 
   if (normalizedName.includes('israel rail') || normalizedName.includes('railways') || normalizedName.includes('רכבת')) {
     return '#0033A0'
   }
 
-  if (normalizedName.includes('dankal') || normalizedName.includes('נת"ע') || normalizedName.includes('nta') || normalizedName.includes('light rail')) {
+  if (isNtaOperator) {
     return '#E31837'
   }
 

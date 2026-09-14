@@ -538,6 +538,7 @@ export function TransitMapLayout() {
           edges={edges}
           isLoading={isLoading}
           nodes={nodes}
+          loadError={loadError}
           route={selectedRoute}
           wrapperRef={wrapperRef}
           onConnect={handleConnect}

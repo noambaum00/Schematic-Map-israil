@@ -44,11 +44,10 @@ This phase adds automated MOT GTFS fetching at build time together with a lighte
 
 ```bash
 npm install
-npm run gtfs:update
 npm run dev
 ```
 
-Then open the app to browse the bundled MOT feed, optionally replace it with another official GTFS `.zip` archive, drag stations and hubs on the schematic grid, add POIs, copy a share link, and export the current graph as SVG.
+If `public/transit_graph.json` is missing or stale, or if you are working specifically on the GTFS refresh flow, run `npm run gtfs:update` before opening the app. Then browse the bundled MOT feed, optionally replace it with another official GTFS `.zip` archive, drag stations and hubs on the schematic grid, add POIs, copy a share link, and export the current graph as SVG.
 
 ## GitHub Pages publishing
 

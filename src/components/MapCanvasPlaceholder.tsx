@@ -30,6 +30,7 @@ type MapCanvasPlaceholderProps = {
   activeLanguage: TransitLanguage
   edges: CanvasEdge[]
   isLoading: boolean
+  loadError: string | null
   nodes: CanvasNode[]
   onConnect: (connection: Connection) => void
   onInit: (instance: ReactFlowInstance<CanvasNode, CanvasEdge>) => void
@@ -79,6 +80,7 @@ function CanvasInner({
   activeLanguage,
   edges,
   isLoading,
+  loadError,
   nodes,
   onConnect,
   onInit,
@@ -160,10 +162,17 @@ function CanvasInner({
           <article className="rounded-[1.75rem] border border-gray-200 bg-gray-50 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600">{activeText.routeMetadata}</p>
             {!route ? (
-              <>
-                <p className="mt-4 text-sm font-semibold text-gray-900">{isLoading ? activeText.parsingGtfs : emptyStates[activeLanguage].title}</p>
-                <p className="mt-3 text-sm text-gray-600">{isLoading ? activeText.readingArchive : emptyStates[activeLanguage].description}</p>
-              </>
+              loadError ? (
+                <>
+                  <p className="mt-4 text-sm font-semibold text-red-600">{activeText.bundledFeedUnavailable}</p>
+                  <p className="mt-3 text-sm text-gray-600">{loadError}</p>
+                </>
+              ) : (
+                <>
+                  <p className="mt-4 text-sm font-semibold text-gray-900">{isLoading ? activeText.parsingGtfs : emptyStates[activeLanguage].title}</p>
+                  <p className="mt-3 text-sm text-gray-600">{isLoading ? activeText.readingArchive : emptyStates[activeLanguage].description}</p>
+                </>
+              )
             ) : (
               <ul className="mt-4 space-y-3 text-sm text-gray-700">
                 <li>• {activeText.routeMode}: {route.mode}</li>
