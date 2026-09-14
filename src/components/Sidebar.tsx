@@ -1,5 +1,4 @@
 import type { ParsedFeed, ParsedRoute, TransitLanguage } from '../lib/gtfs'
-import { algorithmPlans, architectureSections, operatorColors, packageGroups } from '../data/transitPlan'
 import type { CanvasEdge, EdgeRoutingStyle } from '../lib/canvasGraph'
 import { interfaceText } from '../lib/uiText'
 
@@ -36,6 +35,85 @@ const languages = ['English', 'עברית', 'العربية'] as const
 const edgeColorPalette = ['#2563EB', '#0033A0', '#E31837', '#007A33', '#FF7900', '#00AEEF', '#F59E0B', '#A855F7'] as const
 const edgeStyleOptions: EdgeRoutingStyle[] = ['schematic', 'default', 'smoothstep', 'straight']
 
+type IconProps = {
+  className?: string
+}
+
+function UploadIcon({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg aria-hidden="true" className={className} fill="none" viewBox="0 0 24 24">
+      <path d="M12 16V5m0 0-4 4m4-4 4 4M5 19h14" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+    </svg>
+  )
+}
+
+function PinIcon({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg aria-hidden="true" className={className} fill="none" viewBox="0 0 24 24">
+      <path d="M12 21c3.5-4.1 5.25-7.1 5.25-9a5.25 5.25 0 1 0-10.5 0c0 1.9 1.75 4.9 5.25 9Z" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="12" cy="12" r="1.75" fill="currentColor" />
+    </svg>
+  )
+}
+
+function ExportIcon({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg aria-hidden="true" className={className} fill="none" viewBox="0 0 24 24">
+      <path d="M12 4v10m0 0-3.5-3.5M12 14l3.5-3.5M5 20h14" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+    </svg>
+  )
+}
+
+function ShareIcon({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg aria-hidden="true" className={className} fill="none" viewBox="0 0 24 24">
+      <path d="M15 8a3 3 0 1 0-2.82-4H12a3 3 0 0 0 .18 1.01L8.91 7.12a3 3 0 1 0 0 9.76l3.27 2.11A3 3 0 1 0 13 17.5l-3.27-2.11a3.02 3.02 0 0 0 0-6.78L13 6.5A3 3 0 0 0 15 8Z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+    </svg>
+  )
+}
+
+function SettingsIcon({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg aria-hidden="true" className={className} fill="none" viewBox="0 0 24 24">
+      <path d="M12 8.75A3.25 3.25 0 1 0 12 15.25A3.25 3.25 0 1 0 12 8.75z" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M19.4 15a1 1 0 0 0 .2 1.1l.06.06a1.9 1.9 0 1 1-2.69 2.69l-.06-.06a1 1 0 0 0-1.1-.2 1 1 0 0 0-.61.91V20a1.9 1.9 0 1 1-3.8 0v-.09a1 1 0 0 0-.65-.93 1 1 0 0 0-1.1.2l-.06.06a1.9 1.9 0 1 1-2.69-2.69l.06-.06a1 1 0 0 0 .2-1.1 1 1 0 0 0-.91-.61H4a1.9 1.9 0 1 1 0-3.8h.09a1 1 0 0 0 .93-.65 1 1 0 0 0-.2-1.1l-.06-.06a1.9 1.9 0 1 1 2.69-2.69l.06.06a1 1 0 0 0 1.1.2h.03a1 1 0 0 0 .58-.91V4a1.9 1.9 0 1 1 3.8 0v.09a1 1 0 0 0 .61.91 1 1 0 0 0 1.1-.2l.06-.06a1.9 1.9 0 1 1 2.69 2.69l-.06.06a1 1 0 0 0-.2 1.1v.03a1 1 0 0 0 .91.58H20a1.9 1.9 0 1 1 0 3.8h-.09a1 1 0 0 0-.91.61Z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.4" />
+    </svg>
+  )
+}
+
+function ActionButton({
+  disabled = false,
+  icon,
+  label,
+  onClick,
+}: {
+  disabled?: boolean
+  icon: JSX.Element
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-blue-100 bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:border-blue-200 disabled:bg-blue-300"
+      disabled={disabled}
+      type="button"
+      onClick={onClick}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  )
+}
+
+function SectionTitle({ icon, title }: { icon: JSX.Element; title: string }) {
+  return (
+    <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+      <span className="flex h-8 w-8 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">{icon}</span>
+      <h2>{title}</h2>
+    </div>
+  )
+}
+
 export function Sidebar({
   activeLanguage,
   exportError,
@@ -65,50 +143,60 @@ export function Sidebar({
   onQueryChange,
 }: SidebarProps) {
   const text = interfaceText[activeLanguage]
-  const resultLabel =
-    activeLanguage === 'English'
-      ? `${routes.length} route${routes.length === 1 ? '' : 's'} shown from the loaded GTFS feed`
-      : text.resultLabel.replace('{count}', String(routes.length))
   const hasSelectedPoi = poiLabel.length > 0
   const selectedEdgeColor =
     selectedEdge?.data?.customColor ??
     (typeof selectedEdge?.style?.stroke === 'string' ? selectedEdge.style.stroke : '#64748b')
   const selectedEdgeStrokeWidth = Number(selectedEdge?.data?.customStrokeWidth ?? selectedEdge?.style?.strokeWidth ?? 3)
-  const selectedEdgeLabel = selectedEdge?.data?.isManual ? text.manualEdge : text.transitEdge
   const fileUploadLabel = feed ? text.replaceGtfs : text.uploadGtfs
 
   return (
     <aside
-      className={`flex h-full flex-col gap-6 overflow-y-auto rounded-[2rem] border border-gray-200 bg-white p-6 shadow-sm ${
+      className={`flex h-full flex-col gap-4 overflow-y-auto rounded-[1.75rem] border border-blue-100 bg-white p-4 shadow-[0_18px_48px_rgba(37,99,235,0.08)] ${
         activeLanguage === 'English' ? 'xl:border-r' : 'xl:border-l'
       }`}
     >
-      <div className="space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-blue-600">{text.phase}</p>
+      <header className="flex items-start justify-between gap-3 rounded-[1.5rem] border border-blue-100 bg-blue-50/60 px-4 py-3">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-gray-900">Israel schematic map planner</h1>
-          <p className="mt-2 text-sm text-gray-600">{text.canvasRegionDescription}</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Schematic Map</h1>
+          <p className="mt-1 text-sm text-blue-700">{text.resultLabel.replace('{count}', String(routes.length))}</p>
         </div>
-      </div>
+        <div className="grid grid-cols-3 gap-1 rounded-2xl bg-white p-1 shadow-sm">
+          {languages.map((language) => {
+            const isActive = language === activeLanguage
 
-      <section className="space-y-3 rounded-3xl border border-gray-200 bg-gray-50 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-gray-900">{text.gtfsSource}</h2>
-          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">{text.realDataOnly}</span>
+            return (
+              <label key={language} className="block cursor-pointer">
+                <input
+                  checked={isActive}
+                  className="peer sr-only"
+                  name="interface-language"
+                  type="radio"
+                  value={language}
+                  onChange={() => onLanguageChange(language)}
+                />
+                <span className="flex min-w-12 items-center justify-center rounded-xl px-2 py-2 text-xs font-medium text-slate-500 transition peer-checked:bg-blue-600 peer-checked:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-500 hover:text-blue-700">
+                  {language}
+                </span>
+              </label>
+            )
+          })}
         </div>
-        <p className="text-sm text-gray-600" id="gtfs-file-help">{text.bundledFeedDescription}</p>
-        <label className="block text-sm font-medium text-gray-700" htmlFor="gtfs-file">
+      </header>
+
+      <section className="space-y-3 rounded-[1.5rem] border border-blue-100 bg-slate-50 p-4">
+        <SectionTitle icon={<UploadIcon />} title={text.gtfsSource} />
+        <label className="block text-sm font-medium text-slate-700" htmlFor="gtfs-file">
           {fileUploadLabel}
         </label>
         <input
           accept=".zip,application/zip"
-          aria-describedby="gtfs-file-help"
-          className="block w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 file:mr-4 file:rounded-full file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+          className="block w-full rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm text-slate-700 file:mr-4 file:rounded-full file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           id="gtfs-file"
           type="file"
           onChange={(event) => onFileSelected(event.target.files?.[0] ?? null)}
         />
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-slate-600">
           {isLoading
             ? text.parsingGtfs
             : feed
@@ -124,167 +212,112 @@ export function Sidebar({
         {loadError ? <p className="text-sm text-red-600">{loadError}</p> : null}
       </section>
 
-      <section className="space-y-3 rounded-3xl border border-gray-200 bg-gray-50 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-gray-900">{text.searchAndSelection}</h2>
-          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">{text.gtfsAware}</span>
+      <section className="space-y-3 rounded-[1.5rem] border border-blue-100 bg-slate-50 p-4">
+        <SectionTitle icon={<SettingsIcon />} title={text.mapLineStyle} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-2 sm:col-span-2">
+            <label className="block text-sm font-medium text-slate-700" htmlFor="map-line-style">
+              {text.mapLineStyleDescription}
+            </label>
+            <select
+              className="w-full rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              id="map-line-style"
+              value={globalEdgeStyle}
+              onChange={(event) => onGlobalEdgeStyleChange(event.target.value as EdgeRoutingStyle)}
+            >
+              {edgeStyleOptions.map((option) => (
+                <option key={option} value={option}>
+                  {text.edgeStyleOptions[option]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <ActionButton icon={<PinIcon />} label={text.addPoi} onClick={onAddPoi} />
+          <ActionButton disabled={isExporting} icon={<ExportIcon />} label={isExporting ? text.exportingSvg : text.exportSvg} onClick={onExportSvg} />
+          <div className="sm:col-span-2">
+            <ActionButton disabled={isSharing} icon={<ShareIcon />} label={text.shareMap} onClick={onShareMap} />
+          </div>
         </div>
-        <label className="block text-sm font-medium text-gray-700" htmlFor="route-query">
+        {exportError ? <p className="text-sm text-red-600">{exportError}</p> : null}
+        {shareError ? <p className="text-sm text-red-600">{shareError}</p> : null}
+      </section>
+
+      <section className="space-y-3 rounded-[1.5rem] border border-blue-100 bg-slate-50 p-4">
+        <SectionTitle icon={<UploadIcon className="h-4 w-4 rotate-90" />} title={text.searchAndSelection} />
+        <label className="block text-sm font-medium text-slate-700" htmlFor="route-query">
           {text.searchRailLightBus}
         </label>
         <input
-          aria-describedby="route-query-status"
           id="route-query"
-          className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+          className="w-full rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
           placeholder={text.searchPlaceholder}
           type="search"
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
         />
-        <p aria-live="polite" className="text-sm text-gray-500" id="route-query-status">
-          {resultLabel}
-        </p>
-        <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+        <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
           {routes.map((route) => {
             const isSelected = route.id === selectedRouteId
 
             return (
               <button
                 key={route.id}
-                className={`block w-full rounded-2xl border p-3 text-start transition ${
+                className={`block w-full rounded-2xl border px-3 py-3 text-start transition ${
                   isSelected
                     ? 'border-blue-200 bg-blue-50 shadow-sm'
-                    : 'border-gray-200 bg-white hover:border-blue-200 hover:bg-blue-50/60'
+                    : 'border-blue-100 bg-white hover:border-blue-200 hover:bg-blue-50/60'
                 }`}
                 type="button"
                 onClick={() => onRouteSelect(route.id)}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{route.label}</p>
-                    <p className="mt-1 text-xs text-gray-500">{route.operator}</p>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-900">{route.label}</p>
+                    <p className="mt-1 truncate text-xs text-slate-500">{route.operator}</p>
                   </div>
-                  <span className="mt-1 h-3 w-3 shrink-0 rounded-full border border-gray-200" style={{ backgroundColor: route.operatorColor }} />
+                  <span className="mt-1 h-3 w-3 shrink-0 rounded-full border border-white shadow-sm" style={{ backgroundColor: route.operatorColor }} />
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-600">
-                  <span className="rounded-full border border-gray-200 bg-white px-2 py-1">{route.mode}</span>
-                  <span className="rounded-full border border-gray-200 bg-white px-2 py-1">
-                    {text.stopsCount.replace('{count}', String(route.stops.length))}
-                  </span>
-                  <span className="rounded-full border border-gray-200 bg-white px-2 py-1">
-                    {text.tripsCount.replace('{count}', String(route.tripCount))}
-                  </span>
-                  {route.trainTemplateLabel ? (
-                    <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-blue-700">{route.trainTemplateLabel}</span>
-                  ) : null}
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
+                  <span className="rounded-full border border-blue-100 bg-white px-2 py-1">{route.mode}</span>
+                  <span className="rounded-full border border-blue-100 bg-white px-2 py-1">{text.stopsCount.replace('{count}', String(route.stops.length))}</span>
+                  <span className="rounded-full border border-blue-100 bg-white px-2 py-1">{text.tripsCount.replace('{count}', String(route.tripCount))}</span>
                 </div>
               </button>
             )
           })}
-          {routes.length === 0 ? <p className="text-sm text-gray-500">{feed ? text.noRoutesMatch : text.loadFeedToBrowse}</p> : null}
+          {routes.length === 0 ? <p className="text-sm text-slate-500">{feed ? text.noRoutesMatch : text.loadFeedToBrowse}</p> : null}
         </div>
       </section>
 
-      <section className="space-y-3 rounded-3xl border border-gray-200 bg-gray-50 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-gray-900">{text.poiNodes}</h2>
-          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">{text.reactFlowBadge}</span>
-        </div>
-        <button
-          className="w-full rounded-2xl bg-blue-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          type="button"
-          onClick={onAddPoi}
-        >
-          {text.addPoi}
-        </button>
-        <label className="block text-sm font-medium text-gray-700" htmlFor="poi-label">
+      <section className="space-y-3 rounded-[1.5rem] border border-blue-100 bg-slate-50 p-4">
+        <SectionTitle icon={<PinIcon />} title={text.poiNodes} />
+        <label className="block text-sm font-medium text-slate-700" htmlFor="poi-label">
           {text.selectPoiLabel}
         </label>
         <input
           id="poi-label"
-          className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+          className="w-full rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
           disabled={!hasSelectedPoi}
           placeholder={text.selectPoiLabel}
           type="text"
           value={poiLabel}
           onChange={(event) => onPoiLabelChange(event.target.value)}
         />
-        <p className="text-sm text-gray-600">{text.poiDescription}</p>
       </section>
 
-      <section className="space-y-3 rounded-3xl border border-gray-200 bg-gray-50 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-gray-900">{text.export}</h2>
-          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">{text.vectorSvg}</span>
-        </div>
-        <button
-          className="w-full rounded-2xl bg-blue-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-blue-300"
-          disabled={isExporting}
-          type="button"
-          onClick={onExportSvg}
-        >
-          {isExporting ? text.exportingSvg : text.exportSvg}
-        </button>
-        <p className="text-sm text-gray-600">{text.exportDescription}</p>
-        {exportError ? <p className="text-sm text-red-600">{exportError}</p> : null}
-      </section>
-
-      <section className="space-y-3 rounded-3xl border border-gray-200 bg-gray-50 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-gray-900">{text.shareMap}</h2>
-          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">{text.urlBadge}</span>
-        </div>
-        <button
-          className="w-full rounded-2xl bg-blue-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-blue-300"
-          disabled={isSharing}
-          type="button"
-          onClick={onShareMap}
-        >
-          {text.shareMap}
-        </button>
-        <p className="text-sm text-gray-600">{text.shareDescription}</p>
-        {shareError ? <p className="text-sm text-red-600">{shareError}</p> : null}
-      </section>
-
-      <section className="space-y-3 rounded-3xl border border-gray-200 bg-gray-50 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-gray-900">{text.mapLineStyle}</h2>
-          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">{text.globalSetting}</span>
-        </div>
-        <label className="block text-sm font-medium text-gray-700" htmlFor="map-line-style">
-          {text.mapLineStyleDescription}
-        </label>
-        <select
-          className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-          id="map-line-style"
-          value={globalEdgeStyle}
-          onChange={(event) => onGlobalEdgeStyleChange(event.target.value as EdgeRoutingStyle)}
-        >
-          {edgeStyleOptions.map((option) => (
-            <option key={option} value={option}>
-              {text.edgeStyleOptions[option]}
-            </option>
-          ))}
-        </select>
-      </section>
-
-      <section className="space-y-3 rounded-3xl border border-gray-200 bg-gray-50 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-gray-900">{text.edgeCustomization}</h2>
-          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">{selectedEdge ? selectedEdgeLabel : text.selectEdgeBadge}</span>
-        </div>
+      <section className="space-y-3 rounded-[1.5rem] border border-blue-100 bg-slate-50 p-4">
+        <SectionTitle icon={<SettingsIcon />} title={text.edgeCustomization} />
         {!selectedEdge ? (
-          <p className="text-sm text-gray-600">{text.selectEdgeHint}</p>
+          <p className="text-sm text-slate-500">{text.selectEdgeHint}</p>
         ) : (
           <>
-            <p className="text-sm text-gray-700">{text.customizeEdgeLabel.replace('{edge}', selectedEdgeLabel)}</p>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700" htmlFor="selected-edge-color">
+              <label className="block text-sm font-medium text-slate-700" htmlFor="selected-edge-color">
                 {text.edgeColor}
               </label>
               <input
                 id="selected-edge-color"
-                className="h-11 w-full rounded-2xl border border-gray-200 bg-white p-2"
+                className="h-11 w-full rounded-2xl border border-blue-100 bg-white p-2"
                 type="color"
                 value={selectedEdgeColor}
                 onChange={(event) => onEdgeColorChange(event.target.value)}
@@ -294,7 +327,7 @@ export function Sidebar({
                   <button
                     key={color}
                     aria-label={text.edgeColorSwatch.replace('{color}', color)}
-                    className={`h-8 w-8 rounded-full border transition ${selectedEdgeColor === color ? 'border-blue-600 ring-2 ring-blue-200' : 'border-gray-200'}`}
+                    className={`h-8 w-8 rounded-full border transition ${selectedEdgeColor === color ? 'border-blue-600 ring-2 ring-blue-200' : 'border-blue-100'}`}
                     style={{ backgroundColor: color }}
                     type="button"
                     onClick={() => onEdgeColorChange(color)}
@@ -305,10 +338,10 @@ export function Sidebar({
 
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-3">
-                <label className="block text-sm font-medium text-gray-700" htmlFor="selected-edge-stroke-width">
+                <label className="block text-sm font-medium text-slate-700" htmlFor="selected-edge-stroke-width">
                   {text.edgeStrokeWidth}
                 </label>
-                <span className="text-sm text-gray-500">{text.edgeStrokeWidthValue.replace('{count}', String(selectedEdgeStrokeWidth))}</span>
+                <span className="text-sm text-slate-500">{text.edgeStrokeWidthValue.replace('{count}', String(selectedEdgeStrokeWidth))}</span>
               </div>
               <input
                 id="selected-edge-stroke-width"
@@ -323,109 +356,6 @@ export function Sidebar({
             </div>
           </>
         )}
-      </section>
-
-      <fieldset className="space-y-3 rounded-3xl border border-gray-200 bg-gray-50 p-4">
-        <div className="flex items-center justify-between">
-          <legend className="text-sm font-semibold text-gray-900">{text.language}</legend>
-          <span className="text-xs text-gray-500">{text.rtlReady}</span>
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          {languages.map((language) => {
-            const isActive = language === activeLanguage
-
-            return (
-              <label key={language} className="block cursor-pointer">
-                <input
-                  checked={isActive}
-                  className="peer sr-only"
-                  name="interface-language"
-                  type="radio"
-                  value={language}
-                  onChange={() => onLanguageChange(language)}
-                />
-                <span className="block rounded-2xl border border-gray-200 bg-white px-3 py-2 text-center text-sm text-gray-600 transition peer-checked:border-blue-200 peer-checked:bg-blue-50 peer-checked:text-blue-700 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-500 hover:border-blue-200 hover:text-blue-700">
-                  {language}
-                </span>
-              </label>
-            )
-          })}
-        </div>
-      </fieldset>
-
-      <section className="space-y-4 rounded-3xl border border-gray-200 bg-gray-50 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-gray-900">{text.architecture}</h2>
-          <span className="text-xs text-gray-500">{text.phase}</span>
-        </div>
-        {architectureSections.map((section) => (
-          <article key={section.title} className="space-y-2">
-            <h3 className="text-sm font-medium text-blue-700">{section.title}</h3>
-            <p className="text-sm text-gray-700">{section.summary}</p>
-            <ul className="space-y-1 text-sm text-gray-600">
-              {section.bullets.map((bullet) => (
-                <li key={bullet} className="flex gap-2">
-                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-600" />
-                  <span>{bullet}</span>
-                </li>
-              ))}
-            </ul>
-          </article>
-        ))}
-      </section>
-
-      <section className="space-y-4 rounded-3xl border border-gray-200 bg-gray-50 p-4">
-        <h2 className="text-sm font-semibold text-gray-900">{text.algorithms}</h2>
-        {algorithmPlans.map((plan) => (
-          <article key={plan.title} className="space-y-2 rounded-2xl border border-gray-200 bg-white p-3">
-            <div>
-              <h3 className="text-sm font-medium text-blue-700">{plan.title}</h3>
-              <p className="text-sm text-gray-700">{plan.goal}</p>
-            </div>
-            <ol className="space-y-1 text-sm text-gray-600">
-              {plan.steps.map((step, index) => (
-                <li key={step} className="flex gap-2">
-                  <span className="font-medium text-blue-600">{index + 1}.</span>
-                  <span>{step}</span>
-                </li>
-              ))}
-            </ol>
-          </article>
-        ))}
-      </section>
-
-      <section className="space-y-4 rounded-3xl border border-gray-200 bg-gray-50 p-4">
-        <h2 className="text-sm font-semibold text-gray-900">{text.installedPackages}</h2>
-        {packageGroups.map((group) => (
-          <article key={group.category} className="space-y-2">
-            <h3 className="text-sm font-medium text-blue-700">{group.category}</h3>
-            <div className="flex flex-wrap gap-2">
-              {group.packages.map((pkg) => (
-                <code key={pkg} className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-700">
-                  {pkg}
-                </code>
-              ))}
-            </div>
-          </article>
-        ))}
-      </section>
-
-      <section className="space-y-3 rounded-3xl border border-gray-200 bg-gray-50 p-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-900">{text.operatorColorsHeading}</h2>
-          <span className="text-xs text-gray-500">{text.liveRouteStyling}</span>
-        </div>
-        <div className="space-y-3">
-          {operatorColors.map((operator) => (
-            <div key={operator.name} className="flex items-start gap-3">
-              <span className="mt-1 h-4 w-4 rounded-full border border-gray-200" style={{ backgroundColor: operator.hex }} />
-              <div>
-                <p className="text-sm font-medium text-gray-900">{operator.name}</p>
-                <p className="text-sm text-gray-600">{operator.note}</p>
-              </div>
-            </div>
-          ))}
-        </div>
       </section>
     </aside>
   )
