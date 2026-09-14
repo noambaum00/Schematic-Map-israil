@@ -50,7 +50,7 @@ test('falls back to windows decoding for non-UTF8 bytes in GTFS rows', () => {
   assert.deepEqual(parseCsv(decoded, 'stop_times.txt'), [{ trip_id: 'T1', stop_id: 'S1', stop_sequence: '1\x81' }])
 })
 
-test('streams stop_times parsing and keeps required fields', async () => {
+test('parses stop_times and keeps required fields', async () => {
   const tempDirectory = await mkdtemp(join(tmpdir(), 'gtfs-update-test-'))
 
   try {
@@ -61,6 +61,45 @@ test('streams stop_times parsing and keeps required fields', async () => {
 
     assert.deepEqual(parsedStopTimes, [{ trip_id: 'T1', stop_id: 'S1', stop_sequence: '1' }])
   } finally {
+    await rm(tempDirectory, { force: true, recursive: true })
+  }
+})
+
+test('parses non-UTF8 stop_times when processed in-memory', async () => {
+  const tempDirectory = await mkdtemp(join(tmpdir(), 'gtfs-update-test-'))
+
+  try {
+    const stopTimesPath = join(tempDirectory, 'stop_times.txt')
+    const bytes = Buffer.from([...Buffer.from('trip_id,stop_id,stop_sequence\nT1,S1,1', 'utf8'), 0x81, 0x0a])
+    await writeFile(stopTimesPath, bytes)
+
+    const parsedStopTimes = await parseExtractedFile(new Map([['stop_times.txt', stopTimesPath]]), 'stop_times.txt')
+
+    assert.deepEqual(parsedStopTimes, [{ trip_id: 'T1', stop_id: 'S1', stop_sequence: '1\x81' }])
+  } finally {
+    await rm(tempDirectory, { force: true, recursive: true })
+  }
+})
+
+test('stream parser supports multiline quoted stop_times rows', async () => {
+  const tempDirectory = await mkdtemp(join(tmpdir(), 'gtfs-update-test-'))
+  const previousThreshold = process.env.GTFS_STOP_TIMES_STREAM_THRESHOLD_BYTES
+
+  try {
+    process.env.GTFS_STOP_TIMES_STREAM_THRESHOLD_BYTES = '1'
+    const stopTimesPath = join(tempDirectory, 'stop_times.txt')
+    await writeFile(stopTimesPath, 'trip_id,stop_id,stop_sequence,stop_headsign\nT1,S1,1,"line1\nline2"\n')
+
+    const parsedStopTimes = await parseExtractedFile(new Map([['stop_times.txt', stopTimesPath]]), 'stop_times.txt')
+
+    assert.deepEqual(parsedStopTimes, [{ trip_id: 'T1', stop_id: 'S1', stop_sequence: '1' }])
+  } finally {
+    if (typeof previousThreshold === 'string') {
+      process.env.GTFS_STOP_TIMES_STREAM_THRESHOLD_BYTES = previousThreshold
+    } else {
+      delete process.env.GTFS_STOP_TIMES_STREAM_THRESHOLD_BYTES
+    }
+
     await rm(tempDirectory, { force: true, recursive: true })
   }
 })

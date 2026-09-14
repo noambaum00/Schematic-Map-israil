@@ -4,10 +4,9 @@ import AdmZip from 'adm-zip'
 import axios from 'axios'
 import Papa from 'papaparse'
 import { createReadStream } from 'node:fs'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { createInterface } from 'node:readline'
 import { pathToFileURL } from 'node:url'
 
 const GTFS_SOURCE_URL = process.env.GTFS_SOURCE_URL ?? 'https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip'
@@ -30,6 +29,7 @@ const textDecoderSpecs = [
   { encoding: 'windows-1252', options: { fatal: false } },
 ]
 const utf32EncodingSpecs = ['utf-32le', 'utf-32be']
+const DEFAULT_STOP_TIMES_STREAM_THRESHOLD_BYTES = 256 * 1024 * 1024
 
 class GtfsDecodeError extends Error {
   constructor(message) {
@@ -555,87 +555,76 @@ function parseCsv(content, fileName, delimiter = getCsvDelimiter(content, fileNa
   return parsed.data
 }
 
-function parseCsvRow(line, delimiter) {
-  const row = []
-  let currentValue = ''
-  let isInQuotes = false
+function getStopTimesStreamThresholdBytes() {
+  const configuredThreshold = Number(process.env.GTFS_STOP_TIMES_STREAM_THRESHOLD_BYTES ?? DEFAULT_STOP_TIMES_STREAM_THRESHOLD_BYTES)
+  return Number.isFinite(configuredThreshold) && configuredThreshold > 0 ? configuredThreshold : DEFAULT_STOP_TIMES_STREAM_THRESHOLD_BYTES
+}
 
-  for (let index = 0; index < line.length; index += 1) {
-    const character = line[index]
-    const nextCharacter = line[index + 1]
-
-    if (character === '"') {
-      if (isInQuotes && nextCharacter === '"') {
-        currentValue += '"'
-        index += 1
-        continue
-      }
-
-      isInQuotes = !isInQuotes
-      continue
-    }
-
-    if (character === delimiter && !isInQuotes) {
-      row.push(currentValue.trim())
-      currentValue = ''
-      continue
-    }
-
-    currentValue += character
+function projectStopTimeRow(row) {
+  return {
+    stop_id: row.stop_id ?? '',
+    stop_sequence: row.stop_sequence ?? '',
+    trip_id: row.trip_id ?? '',
   }
+}
 
-  row.push(currentValue.trim())
-  return row
+async function parseStopTimesInMemory(filePath) {
+  const content = decodeGtfsText(await readFile(filePath), 'stop_times.txt')
+  const delimiter = getCsvDelimiter(content, 'stop_times.txt')
+  validateParsedGtfsHeaders('stop_times.txt', content, delimiter)
+  return parseCsv(content, 'stop_times.txt', delimiter).map((row) => projectStopTimeRow(row))
 }
 
 async function parseStopTimesStream(filePath) {
-  const stream = createReadStream(filePath, { encoding: 'utf8' })
-  const lineReader = createInterface({
-    crlfDelay: Infinity,
-    input: stream,
-  })
   const stopTimes = []
-  let delimiter = ','
-  let tripIdColumnIndex = -1
-  let stopIdColumnIndex = -1
-  let stopSequenceColumnIndex = -1
+  const stream = createReadStream(filePath, { encoding: 'utf8' })
+  const csvStream = Papa.parse(Papa.NODE_STREAM_INPUT, {
+    delimiter: '',
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: (header) => stripLeadingBom(String(header).trim()),
+  })
+  let headersValidated = false
 
-  for await (const rawLine of lineReader) {
-    const line = stripLeadingBom(rawLine).replaceAll('\u0000', '')
+  return new Promise((resolve, reject) => {
+    csvStream.on('data', (row) => {
+      if (!headersValidated) {
+        const headers = Object.keys(row)
 
-    if (!line.trim()) {
-      continue
-    }
+        if (!matchesExpectedHeaders('stop_times.txt', headers)) {
+          reject(new Error('Failed to parse stop_times.txt: missing expected GTFS headers.'))
+          stream.destroy()
+          return
+        }
 
-    if (tripIdColumnIndex < 0) {
-      const commaColumns = parseCsvRow(line, ',')
-      const semicolonColumns = parseCsvRow(line, ';')
-      const headerColumns = matchesExpectedHeaders('stop_times.txt', semicolonColumns) ? semicolonColumns : commaColumns
-      delimiter = headerColumns === semicolonColumns ? ';' : ','
-
-      if (!matchesExpectedHeaders('stop_times.txt', headerColumns)) {
-        throw new Error('Failed to parse stop_times.txt: missing expected GTFS headers.')
+        headersValidated = true
       }
 
-      tripIdColumnIndex = headerColumns.indexOf('trip_id')
-      stopIdColumnIndex = headerColumns.indexOf('stop_id')
-      stopSequenceColumnIndex = headerColumns.indexOf('stop_sequence')
-      continue
-    }
-
-    const columns = parseCsvRow(line, delimiter)
-    stopTimes.push({
-      stop_id: columns[stopIdColumnIndex] ?? '',
-      stop_sequence: columns[stopSequenceColumnIndex] ?? '',
-      trip_id: columns[tripIdColumnIndex] ?? '',
+      stopTimes.push(projectStopTimeRow(row))
     })
+
+    csvStream.on('error', (error) => reject(new Error(`Failed to parse stop_times.txt: ${error.message}`)))
+    csvStream.on('finish', () => {
+      if (!headersValidated && stopTimes.length === 0) {
+        resolve([])
+        return
+      }
+
+      resolve(stopTimes)
+    })
+
+    stream.pipe(csvStream)
+  })
+}
+
+async function parseStopTimesFile(filePath) {
+  const fileStats = await stat(filePath)
+
+  if (fileStats.size <= getStopTimesStreamThresholdBytes()) {
+    return parseStopTimesInMemory(filePath)
   }
 
-  if (tripIdColumnIndex < 0) {
-    throw new Error('Failed to parse stop_times.txt: file is empty or missing a header row.')
-  }
-
-  return stopTimes
+  return parseStopTimesStream(filePath)
 }
 
 function findZipEntry(zip, fileName) {
@@ -873,7 +862,7 @@ async function parseExtractedFile(extractedFiles, fileName, { required = true } 
 
   try {
     if (fileName === 'stop_times.txt') {
-      return await parseStopTimesStream(filePath)
+      return await parseStopTimesFile(filePath)
     }
 
     const content = decodeGtfsText(await readFile(filePath), fileName)
