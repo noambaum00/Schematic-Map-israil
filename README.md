@@ -1,72 +1,63 @@
 # Schematic Map Israel
 
-A Vite + React + TypeScript planning shell for an advanced schematic transit map generator for Israel's public transportation network.
+A Vite + React + TypeScript app for generating schematic transit views for Israel's public transportation network.
 
-## Current scope
+## Phase 2 status
 
-This first slice focuses on the requested **project architecture outline**, **octilinear snapping + hub clustering algorithms**, **required npm package inventory**, and a **main layout component** with:
+This phase removes mock route data and replaces it with a real in-browser GTFS ingestion flow.
 
-- a planning sidebar
-- a searchable line-selection input
-- language toggles for English, Hebrew, and Arabic
-- a schematic map canvas placeholder
-- architectural notes for GTFS ingestion, schematic generation, and export
+### Implemented now
+- upload and parse a real Israel MOT GTFS zip archive in the browser
+- derive live route summaries from `agency.txt`, `routes.txt`, `trips.txt`, `stop_times.txt`, and `stops.txt`
+- search and select real routes after loading a GTFS feed
+- render a live schematic SVG preview for the selected route
+- display Israel Railways train-series labels like `2XX` and `4XX` directly on route edges
+- configure Vite and GitHub Actions for GitHub Pages deployment
 
-## Proposed architecture
-
-### 1. GTFS ingestion pipeline
-- Parse `routes`, `trips`, `stop_times`, `stops`, `shapes`, `frequencies`, `calendar`, `translations`, and wheelchair accessibility fields from the Israel MOT feed.
-- Validate rows with `zod`, normalize operator IDs, and derive canonical station/trip-pattern/hub indexes.
-- Cache a compact graph model for fast client hydration and future server-side preprocessing.
-
-### 2. Schematic graph engine
-- Convert geographic stops + shapes into a topological graph that preserves route order and transfer points.
-- Detect transfer hubs before layout so clustered stations share one schematic node and consistent labels.
-- Persist user edits as deltas layered over generated coordinates instead of mutating raw GTFS data.
-
-### 3. Interactive editor
-- Render nodes and edges with React Flow while using a URL-synced state store for filters, styling overrides, and viewport state.
-- Support layer toggles for operator colors, frequency stroke width, accessibility, night service, and weekend/Shabbat service.
-- Reuse the same scene graph for SVG/PDF export and future collaboration persistence.
-
-## Algorithm proposals
-
-### Octilinear snapping (45° grid)
-1. Simplify GTFS shapes into anchor segments with a conservative Douglas-Peucker pass.
-2. Quantize each segment to the closest octilinear bearing (`0°`, `45°`, `90°`, `135°`, etc.).
-3. Score layout candidates using penalties for line crossings, station displacement, inconsistent spacing, and unnecessary bends.
-4. Solve major interchanges first, then relax neighboring segments iteratively.
-5. Reapply the same snap logic to manual node drags so user edits remain schematic.
-
-### Complex hub clustering
-1. Generate candidate stop groups using spatial distance, `parent_station`, and normalized station names.
-2. Score candidate groups by walking distance, shared routes, accessibility parity, and expected transfer demand.
-3. Promote high-confidence groups into one `Transfer Hub` node while preserving child stop metadata.
-4. Keep a manual override registry for exceptional interchanges that need planner control.
-
-## Required npm packages
-
-### Installed now
-- `react`
-- `react-dom`
-- `typescript`
-- `vite`
-- `tailwindcss`
-- `@tailwindcss/vite`
-
-### Planned for upcoming feature slices
-- `@xyflow/react` for the interactive node/edge canvas
-- `zustand` + `nuqs` for app state and URL serialization
-- `papaparse` + `zod` + `@turf/turf` for GTFS parsing, validation, and spatial calculations
-- `i18next` + `react-i18next` for English/Hebrew/Arabic localization
-- `jspdf` + `svg2pdf.js` for print-quality export
-- `vitest` + `@testing-library/react` for focused UI tests
-
-## Available scripts
+## How to use
 
 ```bash
 npm install
 npm run dev
-npm run build
-npm run lint
 ```
+
+Then open the app and upload an official MOT GTFS `.zip` archive.
+
+## GitHub Pages
+
+The app is configured for repository Pages deployment at the `/Schematic-Map-israil/` base path.
+
+Deployment workflow:
+- `.github/workflows/deploy-pages.yml`
+- builds with `npm ci && npm run build`
+- publishes the `dist/` directory via GitHub Pages
+
+## Current GTFS parsing scope
+
+The current Phase 2 parser reads:
+- `agency.txt`
+- `routes.txt`
+- `trips.txt`
+- `stop_times.txt`
+- `stops.txt`
+
+It uses the longest available trip pattern per route as the schematic preview source.
+
+## Train number templates
+
+For Israel Railways routes, the app scans `route_short_name` and `trip_short_name` for:
+- explicit templates such as `2XX`
+- 3-4 digit train numbers, which are normalized into templates like `2XX` or `4XXX`
+
+The detected template is rendered directly on the line segments of the selected rail route.
+
+## Next steps
+
+Future phases can extend this base with:
+- multi-route overlays
+- octilinear snapping
+- transfer hub clustering
+- accessibility layers
+- pathfinding
+- SVG/PDF export
+- permalink serialization

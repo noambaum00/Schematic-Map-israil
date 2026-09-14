@@ -21,15 +21,6 @@ export type AlgorithmPlan = {
   steps: string[]
 }
 
-export type DemoRoute = {
-  id: string
-  label: string
-  mode: 'rail' | 'light-rail' | 'bus'
-  operator: string
-  frequency: string
-  serviceWindow: string
-}
-
 export const operatorColors: OperatorColor[] = [
   {
     name: 'Israel Railways',
@@ -37,9 +28,9 @@ export const operatorColors: OperatorColor[] = [
     note: 'Heavy rail trunk and suburban corridors.',
   },
   {
-    name: 'Dankal',
+    name: 'Dankal / NTA',
     hex: '#D63B3B',
-    note: 'Jerusalem and Tel Aviv light rail services.',
+    note: 'Light rail corridors and urban rapid transit.',
   },
   {
     name: 'Egged',
@@ -50,30 +41,30 @@ export const operatorColors: OperatorColor[] = [
 
 export const architectureSections: ArchitectureSection[] = [
   {
-    title: 'GTFS ingestion pipeline',
-    summary: 'Normalize MOT feeds into an operator-aware graph before rendering.',
+    title: 'In-browser GTFS ingestion',
+    summary: 'Load a real GTFS zip directly in the browser with no mock data layer.',
     bullets: [
-      'Parse routes, trips, stop_times, stops, shapes, frequencies, calendar, translations, and accessibility fields.',
-      'Build canonical station, trip-pattern, and hub indexes so rail, bus, and light rail can share transfer logic.',
-      'Validate raw CSV rows with Zod before persisting a compact client cache for fast reloads.',
+      'Parse agency, routes, trips, stop_times, and stops from the uploaded MOT GTFS archive.',
+      'Validate required columns with Zod before building route summaries and stop sequences.',
+      'Keep the feed ephemeral in client state so GitHub Pages can host the app without a backend.',
     ],
   },
   {
-    title: 'Schematic graph engine',
-    summary: 'Transform geographic routes into an editable octilinear topology.',
+    title: 'Live schematic route extraction',
+    summary: 'Generate a route-specific schematic from the best available GTFS trip pattern.',
     bullets: [
-      'Project stops into screen coordinates, cluster transfer hubs, and derive simplified polylines from GTFS shapes.',
-      'Run octilinear snapping with edge penalties so line geometry prefers 0°, 45°, 90°, and 135° bearings.',
-      'Persist user edits as deltas on top of generated coordinates so manual adjustments survive feed refreshes.',
+      'Choose a representative trip per route based on stop count and preserve stop order from stop_times.',
+      'Render the selected route as a schematic SVG with segment labels for Israel Railways train series.',
+      'Leave the canvas ready for a future React Flow or D3 replacement once multi-route editing is added.',
     ],
   },
   {
-    title: 'Interactive map workspace',
-    summary: 'Use a node/edge canvas with sidebar-driven filtering, editing, and export flows.',
+    title: 'Static deployment target',
+    summary: 'Ship the app as a pure static bundle for GitHub Pages hosting.',
     bullets: [
-      'React Flow powers node dragging, selection, and custom overlays for POIs, accessibility, and pathfinding.',
-      'URL-synced state keeps selected lines, language, layers, and viewport shareable without a backend dependency.',
-      'SVG/PDF export reuses the same scene graph to keep print output faithful to the interactive map.',
+      'Configure Vite with the repository base path used by GitHub Pages.',
+      'Publish the build artifact through a GitHub Actions Pages workflow.',
+      'Avoid server-only dependencies so the same code works locally and on Pages.',
     ],
   },
 ]
@@ -84,69 +75,54 @@ export const packageGroups: PackageGroup[] = [
     packages: ['react', 'react-dom', 'typescript', 'vite', 'tailwindcss', '@tailwindcss/vite'],
   },
   {
-    category: 'Transit graph + state',
-    packages: ['@xyflow/react', 'zustand', 'nuqs'],
+    category: 'GTFS parsing',
+    packages: ['jszip', 'papaparse', 'zod'],
   },
   {
-    category: 'GTFS parsing + validation',
-    packages: ['papaparse', 'zod', '@turf/turf'],
-  },
-  {
-    category: 'Localization + export',
-    packages: ['i18next', 'react-i18next', 'jspdf', 'svg2pdf.js'],
-  },
-  {
-    category: 'Testing to add next',
-    packages: ['vitest', '@testing-library/react', '@testing-library/user-event'],
+    category: 'Next feature slices',
+    packages: ['@xyflow/react', 'zustand', 'nuqs', 'i18next', 'react-i18next', 'jspdf'],
   },
 ]
 
 export const algorithmPlans: AlgorithmPlan[] = [
   {
-    title: 'Octilinear snapping',
-    goal: 'Generate a classic metro-map geometry while preserving route order and transfer readability.',
+    title: 'Representative trip selection',
+    goal: 'Pick one GTFS trip pattern per route that produces a readable station sequence for the schematic.',
     steps: [
-      'Start from GTFS stop coordinates and simplify each shape into anchor segments using Douglas-Peucker with a transit-safe tolerance.',
-      'Map each segment bearing to the nearest octilinear angle and score alternatives with penalties for detours, crossings, and stop displacement.',
-      'Use iterative relaxation: lock major hubs first, then solve adjacent segments while keeping station spacing above a minimum visual threshold.',
-      'Snap manual drag operations back onto the same grid so hand-tuned edits remain consistent with auto-generated geometry.',
+      'Group trips by route and collect stop_times for each trip from the uploaded GTFS feed.',
+      'Prefer the trip with the most ordered stops as the base pattern for the route preview.',
+      'Collapse duplicate consecutive stops so terminal loops do not create repeated station nodes.',
     ],
   },
   {
-    title: 'Hub clustering',
-    goal: 'Merge adjacent stop platforms and terminals into a single transfer node without losing operator detail.',
+    title: 'Israel Railways train-series labels',
+    goal: 'Display an edge label like 2XX or 4XX directly from route_short_name or trip_short_name.',
     steps: [
-      'Create candidate groups using spatial proximity, shared station names, and GTFS parent_station relationships when present.',
-      'Score every pair by walking distance, route overlap, accessibility parity, and transfer demand inferred from timed connections.',
-      'Promote dense groups into one Transfer Hub node with child stop metadata retained for labels, accessibility icons, and pathfinding.',
-      'Expose an override list for exceptional Israeli interchanges where planners want manual grouping or separation.',
+      'Scan rail route and trip short names for existing series tokens or 3-4 digit train numbers.',
+      'Normalize matched train numbers into templates by keeping the first digit and replacing the rest with X.',
+      'Render the resulting series string on each segment of the selected rail route in the schematic SVG.',
     ],
   },
 ]
 
-export const demoRoutes: DemoRoute[] = [
-  {
-    id: 'ir-a1',
-    label: 'Israel Railways A1',
-    mode: 'rail',
-    operator: 'Israel Railways',
-    frequency: 'Every 30 min',
-    serviceWindow: 'Weekday + Friday daytime',
-  },
-  {
-    id: 'jlr-red',
-    label: 'Jerusalem Red Line',
-    mode: 'light-rail',
-    operator: 'Dankal',
-    frequency: 'Every 6 min',
-    serviceWindow: 'Extended evenings',
-  },
-  {
-    id: 'egged-480',
-    label: 'Egged 480',
-    mode: 'bus',
-    operator: 'Egged',
-    frequency: 'Every 10 min',
-    serviceWindow: 'Night + weekend variants',
-  },
-]
+export function getOperatorColor(operatorName: string) {
+  const normalizedName = operatorName.toLowerCase()
+
+  if (normalizedName.includes('rail')) {
+    return '#2457C5'
+  }
+
+  if (normalizedName.includes('dankal') || normalizedName.includes('neta') || normalizedName.includes('light rail')) {
+    return '#D63B3B'
+  }
+
+  if (normalizedName.includes('egged')) {
+    return '#1B8E5A'
+  }
+
+  if (normalizedName.includes('bus')) {
+    return '#F59E0B'
+  }
+
+  return '#38BDF8'
+}

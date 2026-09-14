@@ -1,31 +1,74 @@
-import type { DemoRoute } from '../data/transitPlan'
+import type { ParsedFeed, ParsedRoute, TransitLanguage } from '../lib/gtfs'
 import { algorithmPlans, architectureSections, operatorColors, packageGroups } from '../data/transitPlan'
 
 type SidebarProps = {
-  activeLanguage: 'English' | 'עברית' | 'العربية'
-  onLanguageChange: (language: 'English' | 'עברית' | 'العربية') => void
+  activeLanguage: TransitLanguage
+  feed: ParsedFeed | null
+  isLoading: boolean
+  loadError: string | null
+  onFileSelected: (file: File | null) => void
+  onLanguageChange: (language: TransitLanguage) => void
+  onRouteSelect: (routeId: string) => void
   query: string
+  routes: ParsedRoute[]
+  selectedRouteId: string | null
   onQueryChange: (value: string) => void
-  selectedRoutes: DemoRoute[]
 }
 
 const languages = ['English', 'עברית', 'العربية'] as const
 
-export function Sidebar({ activeLanguage, onLanguageChange, query, onQueryChange, selectedRoutes }: SidebarProps) {
-  const resultLabel = `${selectedRoutes.length} route${selectedRoutes.length === 1 ? '' : 's'} shown in the current map plan`
+export function Sidebar({
+  activeLanguage,
+  feed,
+  isLoading,
+  loadError,
+  onFileSelected,
+  onLanguageChange,
+  onRouteSelect,
+  query,
+  routes,
+  selectedRouteId,
+  onQueryChange,
+}: SidebarProps) {
+  const resultLabel = `${routes.length} route${routes.length === 1 ? '' : 's'} shown from the loaded GTFS feed`
 
   return (
     <aside className="flex h-full flex-col gap-6 overflow-y-auto border-b border-white/10 bg-slate-950/70 p-6 backdrop-blur xl:border-b-0 xl:border-r">
       <div className="space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Transit scope</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Phase 2</p>
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-white">Israel schematic map planner</h1>
           <p className="mt-2 text-sm text-slate-300">
-            A planning shell for GTFS-driven rail, light rail, and bus diagrams with octilinear layout,
-            transfer hubs, accessibility overlays, and shareable state.
+            Load a real GTFS zip, search routes, and inspect a live schematic preview with Israel Railways
+            train-series labels rendered directly on route edges.
           </p>
         </div>
       </div>
+
+      <section className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-white">GTFS source</h2>
+          <span className="rounded-full bg-cyan-400/10 px-3 py-1 text-xs text-cyan-200">Real data only</span>
+        </div>
+        <label className="block text-sm text-slate-300" htmlFor="gtfs-file">
+          Upload an official Israel MOT GTFS zip archive
+        </label>
+        <input
+          accept=".zip,application/zip"
+          className="block w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-slate-200 file:mr-4 file:rounded-full file:border-0 file:bg-cyan-400/15 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-cyan-100"
+          id="gtfs-file"
+          type="file"
+          onChange={(event) => onFileSelected(event.target.files?.[0] ?? null)}
+        />
+        <p className="text-sm text-slate-400">
+          {isLoading
+            ? 'Parsing GTFS archive…'
+            : feed
+              ? `Loaded ${feed.fileName} · ${feed.routes.length} routes · ${feed.trips} trips · ${feed.stops} stops`
+              : 'No feed loaded yet.'}
+        </p>
+        {loadError ? <p className="text-sm text-rose-300">{loadError}</p> : null}
+      </section>
 
       <section className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center justify-between gap-3">
@@ -47,12 +90,44 @@ export function Sidebar({ activeLanguage, onLanguageChange, query, onQueryChange
         <p aria-live="polite" className="text-sm text-slate-400" id="route-query-status">
           {resultLabel}
         </p>
-        <div className="flex flex-wrap gap-2 text-xs text-slate-200">
-          {selectedRoutes.map((route) => (
-            <span key={route.id} className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-              {route.label}
-            </span>
-          ))}
+        <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+          {routes.map((route) => {
+            const isSelected = route.id === selectedRouteId
+
+            return (
+              <button
+                key={route.id}
+                className={`block w-full rounded-2xl border p-3 text-left transition ${
+                  isSelected
+                    ? 'border-cyan-300 bg-cyan-300/10'
+                    : 'border-white/10 bg-slate-950/40 hover:border-white/30'
+                }`}
+                type="button"
+                onClick={() => onRouteSelect(route.id)}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-white">{route.label}</p>
+                    <p className="mt-1 text-xs text-slate-400">{route.operator}</p>
+                  </div>
+                  <span
+                    className="mt-1 h-3 w-3 shrink-0 rounded-full border border-white/20"
+                    style={{ backgroundColor: route.operatorColor }}
+                  />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-300">
+                  <span className="rounded-full border border-white/10 px-2 py-1">{route.mode}</span>
+                  <span className="rounded-full border border-white/10 px-2 py-1">{route.stops.length} stops</span>
+                  {route.trainTemplateLabel ? (
+                    <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2 py-1 text-cyan-100">
+                      {route.trainTemplateLabel}
+                    </span>
+                  ) : null}
+                </div>
+              </button>
+            )
+          })}
+          {routes.length === 0 ? <p className="text-sm text-slate-500">Load a feed to browse routes.</p> : null}
         </div>
       </section>
 
@@ -87,7 +162,7 @@ export function Sidebar({ activeLanguage, onLanguageChange, query, onQueryChange
       <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-white">Architecture</h2>
-          <span className="text-xs text-slate-400">Phase 1</span>
+          <span className="text-xs text-slate-400">Phase 2</span>
         </div>
         {architectureSections.map((section) => (
           <article key={section.title} className="space-y-2">
@@ -126,7 +201,7 @@ export function Sidebar({ activeLanguage, onLanguageChange, query, onQueryChange
       </section>
 
       <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
-        <h2 className="text-sm font-semibold text-white">Required npm packages</h2>
+        <h2 className="text-sm font-semibold text-white">Installed npm packages</h2>
         {packageGroups.map((group) => (
           <article key={group.category} className="space-y-2">
             <h3 className="text-sm font-medium text-cyan-100">{group.category}</h3>
@@ -144,7 +219,7 @@ export function Sidebar({ activeLanguage, onLanguageChange, query, onQueryChange
       <section className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-white">Operator colors</h2>
-          <span className="text-xs text-slate-400">Auto-assigned</span>
+          <span className="text-xs text-slate-400">Live route styling</span>
         </div>
         <div className="space-y-3">
           {operatorColors.map((operator) => (
