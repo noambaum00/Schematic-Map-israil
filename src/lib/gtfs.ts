@@ -200,6 +200,10 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
 
   for (const agency of agencies) {
     agencyMap.set(agency.agency_id || agency.agency_name, agency)
+
+    if (!agency.agency_id) {
+      agencyMap.set('', agency)
+    }
   }
 
   for (const stop of stops) {
