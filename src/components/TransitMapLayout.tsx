@@ -138,6 +138,7 @@ export function TransitMapLayout() {
   }, [reactFlowInstance, routeNodeCount, selectedRouteId])
 
   function resetCanvasState() {
+    hasAppliedSharedStateRef.current = false
     setPoiNodes([])
     setManualEdges([])
     setTransitNodePositions({})
@@ -172,7 +173,7 @@ export function TransitMapLayout() {
       setSelectedRouteId(nextSelectedRouteId)
 
       if (sharedState && !hasAppliedSharedStateRef.current) {
-        const sharedRoutes = parsedFeed.routes.filter((route) => sharedState.selectedRouteIds.includes(route.id))
+        const selectedRoute = parsedFeed.routes.find((route) => route.id === nextSelectedRouteId)
         const restoredPoiNodes: POICanvasNode[] = sharedState.poiNodes.map((node) => ({
           data: {
             direction: getDirection(language),
@@ -184,7 +185,7 @@ export function TransitMapLayout() {
           type: 'poi',
         }))
         const availableNodeIds = new Set([
-          ...sharedRoutes.flatMap((route) => route.stops.map((stop) => stop.id)),
+          ...(selectedRoute?.stops.map((stop) => stop.id) ?? []),
           ...restoredPoiNodes.map((node) => node.id),
         ])
         const restoredPoiIdNumbers = restoredPoiNodes

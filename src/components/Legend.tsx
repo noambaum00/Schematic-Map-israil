@@ -1,6 +1,6 @@
 import { getFrequencyStrokeStyle, type FrequencyTier } from '../data/transitPlan'
 import type { ParsedRoute, TransitLanguage } from '../lib/gtfs'
-import { interfaceText } from '../lib/uiText'
+import { interfaceText, isRtlLanguage } from '../lib/uiText'
 
 type LegendProps = {
   activeLanguage: TransitLanguage
@@ -11,6 +11,7 @@ const frequencyTiers: FrequencyTier[] = ['HIGH_FREQUENCY', 'MEDIUM_FREQUENCY', '
 
 export function Legend({ activeLanguage, route }: LegendProps) {
   const text = interfaceText[activeLanguage]
+  const horizontalAnchor = isRtlLanguage(activeLanguage) ? 'right-6' : 'left-6'
 
   if (!route) {
     return null
@@ -19,7 +20,7 @@ export function Legend({ activeLanguage, route }: LegendProps) {
   return (
     <aside
       aria-label={text.legendTitle}
-      className="pointer-events-none absolute bottom-6 left-6 z-20 w-72 rounded-[1.5rem] border border-white/10 bg-slate-950/92 p-4 shadow-2xl backdrop-blur"
+      className={`pointer-events-none absolute bottom-6 ${horizontalAnchor} z-20 w-72 rounded-[1.5rem] border border-white/10 bg-slate-950/92 p-4 shadow-2xl backdrop-blur`}
       role="note"
     >
       <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">{text.legendTitle}</p>

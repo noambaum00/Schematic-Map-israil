@@ -191,9 +191,11 @@ function CanvasInner({
           <article className="rounded-[1.75rem] border border-white/10 bg-slate-950/60 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">{activeText.activeLanguage}</p>
             <p className="mt-4 text-sm text-slate-300">
-              {activeText.nodeLabelsDescription} {isRtl ? 'RTL' : 'LTR'} reading order using{' '}
-              <code>{getNodeLabelDirection(activeLanguage)}</code> text direction and{' '}
-              <code>{getNodeLabelAlignment(activeLanguage)}</code> alignment.
+              {activeText.nodeLabelsDescription}{' '}
+              {activeText.nodeLabelsBehavior
+                .replace('{order}', isRtl ? 'RTL' : 'LTR')
+                .replace('{direction}', getNodeLabelDirection(activeLanguage))
+                .replace('{alignment}', getNodeLabelAlignment(activeLanguage))}
             </p>
           </article>
 
