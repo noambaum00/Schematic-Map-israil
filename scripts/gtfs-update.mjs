@@ -4,7 +4,7 @@ import AdmZip from 'adm-zip'
 import axios from 'axios'
 import Papa from 'papaparse'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 
 const GTFS_SOURCE_URL = process.env.GTFS_SOURCE_URL ?? 'https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip'
@@ -598,7 +598,7 @@ async function main() {
 
   try {
     const feed = buildTransitGraphPayload(fileContents)
-    await mkdir(join(process.cwd(), 'public'), { recursive: true })
+    await mkdir(dirname(OUTPUT_FILE), { recursive: true })
     await writeFile(OUTPUT_FILE, `${JSON.stringify(feed, null, 2)}\n`, 'utf8')
     console.log(`Wrote ${feed.routes.length} routes to ${OUTPUT_FILE}`)
   } finally {

@@ -6,7 +6,7 @@ import {
   type ReactFlowInstance,
   type XYPosition,
 } from '@xyflow/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { CanvasEdge, CanvasNode, EdgeCustomization, EdgeRoutingStyle, POICanvasNode } from '../lib/canvasGraph'
 import { applyEdgePresentation, buildTransitGraph, connectCanvasEdge } from '../lib/canvasGraph'
@@ -27,7 +27,7 @@ export function TransitMapLayout() {
   const [language, setLanguage] = useState<TransitLanguage>(initialSharedState.state?.language ?? defaultLanguage)
   const [feed, setFeed] = useState<ParsedFeed | null>(null)
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [isExporting, setIsExporting] = useState(false)
   const [isSharing, setIsSharing] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(initialSharedState.error)
@@ -48,6 +48,7 @@ export function TransitMapLayout() {
   const hasAppliedSharedStateRef = useRef(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const text = interfaceText[language]
+  const bundledFeedUnavailableMessage = interfaceText[initialSharedState.state?.language ?? defaultLanguage].bundledFeedUnavailable
 
   const allRoutes = useMemo(() => feed?.routes ?? [], [feed?.routes])
 
@@ -147,12 +148,93 @@ export function TransitMapLayout() {
     })()
   }, [reactFlowInstance, routeNodeCount, selectedRouteId])
 
+  const resetCanvasState = useCallback(() => {
+    hasAppliedSharedStateRef.current = false
+    setGlobalEdgeStyle('schematic')
+    setRouteEdgeCustomizations({})
+    setPoiNodes([])
+    setManualEdges([])
+    setSelectedEdgeId(null)
+    setTransitNodePositions({})
+    setSelectedPoiId(null)
+    poiCounterRef.current = 1
+  }, [])
+
+  const applyParsedFeed = useCallback(
+    (parsedFeed: ParsedFeed) => {
+      setFeed(parsedFeed)
+      const sharedState = initialSharedState.state
+      const sharedRouteId = sharedState?.selectedRouteIds.find((routeId) => parsedFeed.routes.some((route) => route.id === routeId)) ?? null
+      const nextSelectedRouteId = sharedRouteId ?? parsedFeed.routes[0]?.id ?? null
+
+      setSelectedRouteId(nextSelectedRouteId)
+
+      if (sharedState && !hasAppliedSharedStateRef.current) {
+        setLanguage(sharedState.language)
+        const sharedRoutes = parsedFeed.routes.filter((route) => sharedState.selectedRouteIds.includes(route.id))
+        const selectedRoute = parsedFeed.routes.find((route) => route.id === nextSelectedRouteId)
+        const restoredEdgeCustomizations = Object.fromEntries(sharedState.edgeCustomizations.map(({ id, ...customization }) => [id, customization]))
+        const restoredPoiNodes: POICanvasNode[] = sharedState.poiNodes.map((node) => ({
+          data: {
+            direction: getDirection(sharedState.language),
+            label: node.label,
+            textAlign: getTextAlignment(sharedState.language),
+          },
+          id: node.id,
+          position: { x: node.x, y: node.y },
+          type: 'poi',
+        }))
+        const restoredRoutes = sharedRoutes.length > 0 ? sharedRoutes : selectedRoute ? [selectedRoute] : []
+        const restoredRouteStopIds = restoredRoutes.flatMap((route) => route.stops.map((stop) => stop.id))
+        const availableNodeIds = new Set([...restoredRouteStopIds, ...restoredPoiNodes.map((node) => node.id)])
+        const restoredPoiIdNumbers = restoredPoiNodes.map((node) => Number(node.id.replace('poi-', ''))).filter((value) => Number.isFinite(value))
+        const highestPoiIndex = restoredPoiIdNumbers.length > 0 ? Math.max(...restoredPoiIdNumbers) : 0
+        const routeStopIds = new Set(restoredRouteStopIds)
+        const restoredTransitNodePositions = Object.fromEntries(Object.entries(sharedState.nodePositions).filter(([nodeId]) => routeStopIds.has(nodeId)))
+
+        setTransitNodePositions(restoredTransitNodePositions)
+        setRouteEdgeCustomizations(restoredEdgeCustomizations)
+        setGlobalEdgeStyle(sharedState.globalEdgeStyle)
+        setPoiNodes(restoredPoiNodes)
+        setManualEdges(
+          sharedState.manualEdges
+            .filter((edge) => {
+              if (!availableNodeIds.has(edge.source) || !availableNodeIds.has(edge.target)) {
+                return false
+              }
+
+              const sourceIsPoi = restoredPoiNodes.some((node) => node.id === edge.source)
+              const targetIsPoi = restoredPoiNodes.some((node) => node.id === edge.target)
+
+              return sourceIsPoi !== targetIsPoi
+            })
+            .map((edge, index) => ({
+              data: {
+                customColor: edge.customColor,
+                customStrokeWidth: edge.customStrokeWidth,
+                isManual: true,
+              },
+              id: `shared-edge-${edge.source}-${edge.target}-${index + 1}`,
+              source: edge.source,
+              style: {
+                stroke: edge.customColor ?? '#2563eb',
+                strokeDasharray: '10 6',
+                strokeWidth: edge.customStrokeWidth ?? 3,
+              },
+              target: edge.target,
+              type: 'schematic',
+            })),
+        )
+        poiCounterRef.current = highestPoiIndex + 1
+        hasAppliedSharedStateRef.current = true
+      }
+    },
+    [initialSharedState.state],
+  )
+
   useEffect(() => {
     const requestId = latestRequestId.current + 1
     latestRequestId.current = requestId
-    setIsLoading(true)
-    setLoadError(initialSharedState.error)
-    resetCanvasState()
 
     void (async () => {
       try {
@@ -170,95 +252,14 @@ export function TransitMapLayout() {
 
         setFeed(null)
         setSelectedRouteId(null)
-        setLoadError(error instanceof Error ? error.message : text.bundledFeedUnavailable)
+        setLoadError(error instanceof Error ? error.message : bundledFeedUnavailableMessage)
       } finally {
         if (latestRequestId.current === requestId) {
           setIsLoading(false)
         }
       }
     })()
-  }, [initialSharedState.error, text.bundledFeedUnavailable])
-
-  function resetCanvasState() {
-    hasAppliedSharedStateRef.current = false
-    setGlobalEdgeStyle('schematic')
-    setRouteEdgeCustomizations({})
-    setPoiNodes([])
-    setManualEdges([])
-    setSelectedEdgeId(null)
-    setTransitNodePositions({})
-    setSelectedPoiId(null)
-    poiCounterRef.current = 1
-  }
-
-  function applyParsedFeed(parsedFeed: ParsedFeed) {
-    setFeed(parsedFeed)
-    const sharedState = initialSharedState.state
-    const sharedRouteId = sharedState?.selectedRouteIds.find((routeId) => parsedFeed.routes.some((route) => route.id === routeId)) ?? null
-    const nextSelectedRouteId = sharedRouteId ?? parsedFeed.routes[0]?.id ?? null
-
-    setSelectedRouteId(nextSelectedRouteId)
-
-    if (sharedState && !hasAppliedSharedStateRef.current) {
-      setLanguage(sharedState.language)
-      const sharedRoutes = parsedFeed.routes.filter((route) => sharedState.selectedRouteIds.includes(route.id))
-      const selectedRoute = parsedFeed.routes.find((route) => route.id === nextSelectedRouteId)
-      const restoredEdgeCustomizations = Object.fromEntries(sharedState.edgeCustomizations.map(({ id, ...customization }) => [id, customization]))
-      const restoredPoiNodes: POICanvasNode[] = sharedState.poiNodes.map((node) => ({
-        data: {
-          direction: getDirection(sharedState.language),
-          label: node.label,
-          textAlign: getTextAlignment(sharedState.language),
-        },
-        id: node.id,
-        position: { x: node.x, y: node.y },
-        type: 'poi',
-      }))
-      const restoredRoutes = sharedRoutes.length > 0 ? sharedRoutes : selectedRoute ? [selectedRoute] : []
-      const restoredRouteStopIds = restoredRoutes.flatMap((route) => route.stops.map((stop) => stop.id))
-      const availableNodeIds = new Set([...restoredRouteStopIds, ...restoredPoiNodes.map((node) => node.id)])
-      const restoredPoiIdNumbers = restoredPoiNodes.map((node) => Number(node.id.replace('poi-', ''))).filter((value) => Number.isFinite(value))
-      const highestPoiIndex = restoredPoiIdNumbers.length > 0 ? Math.max(...restoredPoiIdNumbers) : 0
-      const routeStopIds = new Set(restoredRouteStopIds)
-      const restoredTransitNodePositions = Object.fromEntries(Object.entries(sharedState.nodePositions).filter(([nodeId]) => routeStopIds.has(nodeId)))
-
-      setTransitNodePositions(restoredTransitNodePositions)
-      setRouteEdgeCustomizations(restoredEdgeCustomizations)
-      setGlobalEdgeStyle(sharedState.globalEdgeStyle)
-      setPoiNodes(restoredPoiNodes)
-      setManualEdges(
-        sharedState.manualEdges
-          .filter((edge) => {
-            if (!availableNodeIds.has(edge.source) || !availableNodeIds.has(edge.target)) {
-              return false
-            }
-
-            const sourceIsPoi = restoredPoiNodes.some((node) => node.id === edge.source)
-            const targetIsPoi = restoredPoiNodes.some((node) => node.id === edge.target)
-
-            return sourceIsPoi !== targetIsPoi
-          })
-          .map((edge, index) => ({
-            data: {
-              customColor: edge.customColor,
-              customStrokeWidth: edge.customStrokeWidth,
-              isManual: true,
-            },
-            id: `shared-edge-${edge.source}-${edge.target}-${index + 1}`,
-            source: edge.source,
-            style: {
-              stroke: edge.customColor ?? '#2563eb',
-              strokeDasharray: '10 6',
-              strokeWidth: edge.customStrokeWidth ?? 3,
-            },
-            target: edge.target,
-            type: 'schematic',
-          })),
-      )
-      poiCounterRef.current = highestPoiIndex + 1
-      hasAppliedSharedStateRef.current = true
-    }
-  }
+  }, [applyParsedFeed, bundledFeedUnavailableMessage])
 
   async function handleFileSelected(file: File | null) {
     if (!file) {
