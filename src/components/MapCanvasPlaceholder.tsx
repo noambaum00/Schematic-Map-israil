@@ -84,7 +84,13 @@ function CanvasInner({
 }: MapCanvasPlaceholderProps) {
   const isRtlLanguage = rtlLanguages.has(activeLanguage)
   const miniMapNodeColor = useMemo(
-    () => (node: CanvasNode) => (node.type === 'poi' ? '#f59e0b' : node.data.operatorColor),
+    () => (node: CanvasNode) => {
+      if (node.type === 'poi') {
+        return '#f59e0b'
+      }
+
+      return node.data.operatorColor
+    },
     [],
   )
 

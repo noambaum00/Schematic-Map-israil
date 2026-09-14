@@ -43,8 +43,9 @@ This project now includes a GitHub Pages deployment workflow, and production bui
 
 Configured deployment workflow:
 - `.github/workflows/deploy-pages.yml`
+- runs on pushes to `main`
 - builds with `npm ci && npm run build`
-- publishes the `dist/` directory via GitHub Pages
+- publishes the `dist/` directory via GitHub Pages after the repository Pages source is set to **GitHub Actions**
 
 Repository settings required:
 - open **Settings → Pages** in GitHub

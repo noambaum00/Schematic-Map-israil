@@ -10,6 +10,10 @@ export type POICanvasNode = Node<POINodeData, 'poi'>
 export type CanvasNode = TransitCanvasNode | HubCanvasNode | POICanvasNode
 export type CanvasEdge = Edge
 
+function buildUndirectedConnectionKey(source: string, target: string) {
+  return [source, target].sort().join('<->')
+}
+
 function isTransitNetworkNode(node: CanvasNode): node is TransitCanvasNode | HubCanvasNode {
   return node.type === 'transit' || node.type === 'hub'
 }
@@ -90,10 +94,24 @@ export function connectCanvasEdge(connection: Connection, currentEdges: CanvasEd
     return currentEdges
   }
 
+  const source = connection.source ?? ''
+  const target = connection.target ?? ''
+
+  if (!source || !target) {
+    return currentEdges
+  }
+
+  const nextConnectionKey = buildUndirectedConnectionKey(source, target)
+  const hasDuplicateEdge = currentEdges.some((edge) => buildUndirectedConnectionKey(edge.source, edge.target) === nextConnectionKey)
+
+  if (hasDuplicateEdge) {
+    return currentEdges
+  }
+
   return addEdge(
     {
       ...connection,
-      id: `manual-edge-${connection.source ?? 'unknown'}-${connection.target ?? 'unknown'}-${currentEdges.length + 1}`,
+      id: `manual-edge-${source}-${target}-${currentEdges.length + 1}`,
       style: { stroke: '#f8fafc', strokeDasharray: '10 6', strokeWidth: 3 },
       type: 'schematic',
     },
