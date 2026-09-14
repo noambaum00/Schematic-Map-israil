@@ -9,8 +9,8 @@ const edgeCustomizationSchema = z.object({
   customStrokeWidth: z.number().min(1).max(15).optional(),
 })
 
-const shareableMapStateSchema = z.object({
-  version: z.union([z.literal(1), z.literal(2)]),
+const version2ShareableMapStateSchema = z.object({
+  version: z.literal(2),
   edgeCustomizations: z
     .array(
       z.object({
@@ -46,7 +46,34 @@ const shareableMapStateSchema = z.object({
   selectedRouteIds: z.array(z.string().min(1)),
 })
 
-export type ShareableMapState = z.infer<typeof shareableMapStateSchema>
+const version1ShareableMapStateSchema = z.object({
+  version: z.literal(1),
+  language: z.enum(['English', 'עברית', 'العربية']),
+  manualEdges: z.array(
+    z.object({
+      source: z.string().min(1),
+      target: z.string().min(1),
+    }),
+  ),
+  nodePositions: z.record(
+    z.string(),
+    z.object({
+      x: z.number(),
+      y: z.number(),
+    }),
+  ),
+  poiNodes: z.array(
+    z.object({
+      id: z.string().min(1),
+      label: z.string(),
+      x: z.number(),
+      y: z.number(),
+    }),
+  ),
+  selectedRouteIds: z.array(z.string().min(1)),
+})
+
+export type ShareableMapState = z.infer<typeof version2ShareableMapStateSchema>
 
 type ReadSharedStateResult = {
   error: string | null
@@ -72,6 +99,29 @@ function getEncodedStateFromLocation(location: Location) {
   return new URLSearchParams(hashSearch).get('state')
 }
 
+function normalizeShareableMapState(parsedState: unknown): ShareableMapState {
+  const candidate = z.object({ version: z.number() }).safeParse(parsedState)
+
+  if (candidate.success && candidate.data.version === 1) {
+    const version1State = version1ShareableMapStateSchema.parse(parsedState)
+
+    return {
+      ...version1State,
+      edgeCustomizations: [],
+      globalEdgeStyle: 'schematic',
+      manualEdges: version1State.manualEdges.map((edge) => ({
+        customColor: undefined,
+        customStrokeWidth: undefined,
+        source: edge.source,
+        target: edge.target,
+      })),
+      version: 2,
+    }
+  }
+
+  return version2ShareableMapStateSchema.parse(parsedState)
+}
+
 export function readSharedStateFromUrl(): ReadSharedStateResult {
   try {
     const encodedState = getEncodedStateFromLocation(window.location)
@@ -88,7 +138,7 @@ export function readSharedStateFromUrl(): ReadSharedStateResult {
 
     return {
       error: null,
-      state: shareableMapStateSchema.parse(JSON.parse(decompressed)),
+      state: normalizeShareableMapState(JSON.parse(decompressed)),
     }
   } catch {
     return { error: 'The shared map link could not be restored.', state: null }

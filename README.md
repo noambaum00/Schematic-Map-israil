@@ -47,7 +47,7 @@ Then open the app, upload an official MOT GTFS `.zip` archive, drag stations and
 
 ## GitHub Pages publishing
 
-This project is configured for GitHub Pages deployment through the workflow file in `.github/workflows/deploy-pages.yml`, and production builds are coupled to the Vite `base` value in `vite.config.ts`. Whatever repository slug or subpath you publish under must match that configured base value, or you must update `vite.config.ts` before publishing. Local development does not require Pages setup.
+This project is configured for GitHub Pages deployment through the workflow file in `.github/workflows/deploy-pages.yml`, and production builds are coupled to the Vite `base` value in `vite.config.ts`. The current production base is explicitly set to `/Schematic-Map-israil/`, so the published GitHub Pages path must use that exact repository slug, or you must update `vite.config.ts` before publishing. Local development does not require Pages setup.
 
 Configured deployment workflow:
 - `.github/workflows/deploy-pages.yml`
@@ -58,7 +58,7 @@ Configured deployment workflow:
 Repository settings required:
 - open **Settings → Pages** in GitHub
 - set **Source** to **GitHub Actions**
-- keep the published Pages path aligned with the configured Vite `base` value in `vite.config.ts`, or change `vite.config.ts` before using a different production hosting path
+- keep the published Pages path aligned with the configured `/Schematic-Map-israil/` Vite `base` value in `vite.config.ts`, or change `vite.config.ts` before using a different production hosting path
 
 ## Current GTFS parsing scope
 

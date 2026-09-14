@@ -196,15 +196,16 @@ export function TransitMapLayout() {
       setSelectedRouteId(nextSelectedRouteId)
 
       if (sharedState && !hasAppliedSharedStateRef.current) {
+        setLanguage(sharedState.language)
         const selectedRoute = parsedFeed.routes.find((route) => route.id === nextSelectedRouteId)
         const restoredEdgeCustomizations = Object.fromEntries(
           sharedState.edgeCustomizations.map(({ id, ...customization }) => [id, customization]),
         )
         const restoredPoiNodes: POICanvasNode[] = sharedState.poiNodes.map((node) => ({
           data: {
-            direction: getDirection(language),
+            direction: getDirection(sharedState.language),
             label: node.label,
-            textAlign: getTextAlignment(language),
+            textAlign: getTextAlignment(sharedState.language),
           },
           id: node.id,
           position: { x: node.x, y: node.y },
