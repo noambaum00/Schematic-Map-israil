@@ -3,7 +3,7 @@
 import AdmZip from 'adm-zip'
 import axios from 'axios'
 import Papa from 'papaparse'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -12,6 +12,11 @@ const OUTPUT_FILE = process.env.GTFS_OUTPUT_FILE ?? join(process.cwd(), 'public'
 const REQUIRED_FILES = ['routes.txt', 'trips.txt', 'stop_times.txt', 'stops.txt']
 const OPTIONAL_FILES = ['agency.txt', 'translations.txt']
 const STRIPPED_NAME_PATTERNS = [/\bplatform\b/gi, /\bterminal\b/gi, /\bstation\b/gi, /\bstop\b/gi, /\bbay\b/gi, /מסוף/gi, /רציף/gi]
+const textDecoders = [
+  new TextDecoder('utf-8', { fatal: true }),
+  new TextDecoder('windows-1255'),
+  new TextDecoder('windows-1252'),
+]
 
 function normalizeWhitespace(value) {
   return value.replace(/\s+/g, ' ').trim()
@@ -225,6 +230,18 @@ function clusterStopsIntoTransferHubs(stops, mergeRadiusMeters = 200) {
   return { hubNodes, stopToHubMap }
 }
 
+function decodeGtfsText(buffer) {
+  for (const decoder of textDecoders) {
+    try {
+      return decoder.decode(buffer)
+    } catch {
+      continue
+    }
+  }
+
+  throw new Error('Unable to decode GTFS text file.')
+}
+
 function parseCsv(content, fileName) {
   const parsed = Papa.parse(content.replace(/^\uFEFF/, ''), {
     header: true,
@@ -430,7 +447,7 @@ async function downloadGtfsArchive() {
 async function extractFilesToTempDirectory(buffer) {
   const tempDirectory = await mkdtemp(join(tmpdir(), 'gtfs-update-'))
   const zip = new AdmZip(buffer)
-  const fileContents = new Map()
+  const extractedFiles = new Map()
 
   try {
     for (const fileName of [...REQUIRED_FILES, ...OPTIONAL_FILES]) {
@@ -443,26 +460,42 @@ async function extractFilesToTempDirectory(buffer) {
         continue
       }
 
-      const content = zip.readAsText(entry)
-      const destination = join(tempDirectory, fileName)
-      await writeFile(destination, content, 'utf8')
-      fileContents.set(fileName, content)
+      const filePath = join(tempDirectory, fileName)
+      await writeFile(filePath, entry.getData())
+      extractedFiles.set(fileName, filePath)
     }
 
-    return { fileContents, tempDirectory }
+    return { extractedFiles, tempDirectory }
   } catch (error) {
     await rm(tempDirectory, { force: true, recursive: true })
     throw error
   }
 }
 
-function buildTransitGraphPayload(files) {
-  const agencies = files.get('agency.txt') ? parseCsv(files.get('agency.txt'), 'agency.txt') : []
-  const routes = parseCsv(files.get('routes.txt'), 'routes.txt')
-  const trips = parseCsv(files.get('trips.txt'), 'trips.txt')
-  const stopTimes = parseCsv(files.get('stop_times.txt'), 'stop_times.txt')
-  const stops = parseCsv(files.get('stops.txt'), 'stops.txt')
-  const translations = files.get('translations.txt') ? parseCsv(files.get('translations.txt'), 'translations.txt') : []
+async function readExtractedFile(extractedFiles, fileName) {
+  const filePath = extractedFiles.get(fileName)
+
+  if (!filePath) {
+    return null
+  }
+
+  return decodeGtfsText(await readFile(filePath))
+}
+
+async function buildTransitGraphPayload(extractedFiles) {
+  const agencyText = await readExtractedFile(extractedFiles, 'agency.txt')
+  const routesText = await readExtractedFile(extractedFiles, 'routes.txt')
+  const tripsText = await readExtractedFile(extractedFiles, 'trips.txt')
+  const stopTimesText = await readExtractedFile(extractedFiles, 'stop_times.txt')
+  const stopsText = await readExtractedFile(extractedFiles, 'stops.txt')
+  const translationsText = await readExtractedFile(extractedFiles, 'translations.txt')
+
+  const agencies = agencyText ? parseCsv(agencyText, 'agency.txt') : []
+  const routes = parseCsv(routesText ?? '', 'routes.txt')
+  const trips = parseCsv(tripsText ?? '', 'trips.txt')
+  const stopTimes = parseCsv(stopTimesText ?? '', 'stop_times.txt')
+  const stops = parseCsv(stopsText ?? '', 'stops.txt')
+  const translations = translationsText ? parseCsv(translationsText, 'translations.txt') : []
   const translationMap = buildTranslationMap(translations)
 
   const agencyMap = new Map()
@@ -595,10 +628,10 @@ function buildTransitGraphPayload(files) {
 
 async function main() {
   const archiveBuffer = await downloadGtfsArchive()
-  const { fileContents, tempDirectory } = await extractFilesToTempDirectory(archiveBuffer)
+  const { extractedFiles, tempDirectory } = await extractFilesToTempDirectory(archiveBuffer)
 
   try {
-    const feed = buildTransitGraphPayload(fileContents)
+    const feed = await buildTransitGraphPayload(extractedFiles)
     await mkdir(dirname(OUTPUT_FILE), { recursive: true })
     await writeFile(OUTPUT_FILE, `${JSON.stringify(feed, null, 2)}\n`, 'utf8')
     console.log(`Wrote ${feed.routes.length} routes to ${OUTPUT_FILE}`)
