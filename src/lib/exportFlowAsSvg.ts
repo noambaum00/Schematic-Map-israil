@@ -19,13 +19,13 @@ export async function exportFlowAsSvg<NodeType extends Node = Node, EdgeType ext
   wrapper,
 }: ExportFlowAsSvgOptions<NodeType, EdgeType>) {
   if (!wrapper) {
-    throw new Error('The canvas is not ready for export yet.')
+    throw new Error('Export unavailable: canvas not ready.')
   }
 
   const canvas = wrapper.querySelector<HTMLDivElement>('.react-flow')
 
   if (!canvas) {
-    throw new Error('Unable to find the React Flow canvas for export.')
+    throw new Error('Export failed: canvas not found.')
   }
 
   const nodes = reactFlow.getNodes()

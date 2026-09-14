@@ -289,7 +289,7 @@ export function TransitMapLayout() {
 
       setFeed(null)
       setSelectedRouteId(null)
-      setLoadError(error instanceof Error ? error.message : 'Failed to parse GTFS archive.')
+      setLoadError(error instanceof Error ? error.message : 'GTFS parse failed.')
     } finally {
       if (latestRequestId.current === requestId) {
         setIsLoading(false)
@@ -428,7 +428,7 @@ export function TransitMapLayout() {
 
   function handleAddPoi() {
     if (!reactFlowInstance || !wrapperRef.current) {
-      setExportError('The canvas is still loading. Please try adding the POI again in a moment.')
+      setExportError('Add POI unavailable.')
       return
     }
 
@@ -479,7 +479,7 @@ export function TransitMapLayout() {
 
   async function handleExportSvg() {
     if (!reactFlowInstance) {
-      setExportError('The canvas is not ready to export yet.')
+      setExportError('Export unavailable.')
       return
     }
 
