@@ -20,7 +20,7 @@ test('skips optional files only when decoding fails', async () => {
 
   try {
     const invalidTranslationsPath = join(tempDirectory, 'translations-invalid.txt')
-    await writeFile(invalidTranslationsPath, Buffer.from([0x00, 0x01, 0x02, 0x03]))
+    await writeFile(invalidTranslationsPath, Buffer.from([0x00, 0x00, 0x00, 0x00]))
 
     const skippedTranslations = await parseExtractedFile(new Map([['translations.txt', invalidTranslationsPath]]), 'translations.txt', {
       required: false,
