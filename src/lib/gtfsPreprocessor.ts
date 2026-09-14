@@ -243,8 +243,13 @@ export function remapEdgesToHubs(edges: HubEdge[], stopToHubMap: Record<string, 
   for (const edge of edges) {
     const remappedSource = stopToHubMap[edge.source] ?? edge.source
     const remappedTarget = stopToHubMap[edge.target] ?? edge.target
+    const previousEdge = remappedEdges.at(-1)
 
     if (remappedSource === remappedTarget) {
+      continue
+    }
+
+    if (previousEdge && previousEdge.source === remappedSource && previousEdge.target === remappedTarget) {
       continue
     }
 

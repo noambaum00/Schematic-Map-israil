@@ -48,7 +48,7 @@ export function Sidebar({
   return (
     <aside className="flex h-full flex-col gap-6 overflow-y-auto border-b border-white/10 bg-slate-950/70 p-6 backdrop-blur xl:border-b-0 xl:border-r">
       <div className="space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Phase 3</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Phase 4</p>
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-white">Israel schematic map planner</h1>
           <p className="mt-2 text-sm text-slate-300">
@@ -221,7 +221,7 @@ export function Sidebar({
       <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-white">Architecture</h2>
-          <span className="text-xs text-slate-400">Phase 3</span>
+          <span className="text-xs text-slate-400">Phase 4</span>
         </div>
         {architectureSections.map((section) => (
           <article key={section.title} className="space-y-2">

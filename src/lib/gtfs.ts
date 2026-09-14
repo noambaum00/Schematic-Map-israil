@@ -3,7 +3,7 @@ import Papa from 'papaparse'
 import { z } from 'zod'
 
 import { getOperatorColor } from '../data/transitPlan'
-import { clusterStopsIntoTransferHubs, remapEdgesToHubs, type RawStopForHubClustering } from './gtfsPreprocessor'
+import { clusterStopsIntoTransferHubs, type RawStopForHubClustering } from './gtfsPreprocessor'
 
 const agencySchema = z.object({
   agency_id: z.string().optional().default(''),
@@ -277,19 +277,11 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
       }
 
       const trainTemplates = getMode(route.route_type) === 'rail' ? extractTrainTemplates(route, routeTrips) : []
-      const remappedEdges = remapEdgesToHubs(
-        representativeStopIds.slice(1).map((stopId, index) => ({
-          id: `${representativeTrip!.trip_id}-edge-${index}`,
-          source: representativeStopIds[index]!,
-          target: stopId,
-        })),
-        clusteredStops.stopToHubMap,
-      )
+      const remappedStopIds = representativeStopIds
+        .map((stopId) => clusteredStops.stopToHubMap[stopId] ?? stopId)
+        .filter((stopId, index, allStopIds) => index === 0 || stopId !== allStopIds[index - 1])
 
-      const remappedStopIds = remappedEdges.length > 0 ? [remappedEdges[0]!.source, ...remappedEdges.map((edge) => edge.target)] : []
-      const uniqueStops = remappedStopIds
-        .filter((stopId, index) => index === 0 || stopId !== remappedStopIds[index - 1])
-        .map((stopId) => clusteredStopMap.get(stopId))
+      const uniqueStops = remappedStopIds.map((stopId) => clusteredStopMap.get(stopId))
         .filter((stop): stop is NonNullable<typeof stop> => Boolean(stop))
         .map((stop) => ({
           code: stop.code,
