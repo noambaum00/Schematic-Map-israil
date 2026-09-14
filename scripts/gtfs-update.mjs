@@ -303,10 +303,6 @@ function matchesExpectedHeaders(fileName, columns) {
   return expectedHeaders.every((header) => availableHeaders.has(header))
 }
 
-function shouldValidateDecodedHeaders(fileName) {
-  return fileName === 'translations.txt' || Object.hasOwn(expectedGtfsHeaders, fileName)
-}
-
 function getCsvDelimiter(text, fileName) {
   const attempts = supportedCsvDelimiters.map((delimiter) => ({
     columns: parseCsvHeaderColumnsWithDelimiter(text, delimiter),
@@ -391,8 +387,8 @@ function decodeGtfsText(buffer, fileName) {
       const decoder = new TextDecoder(encoding, options)
       const decoded = stripLeadingBom(decoder.decode(buffer))
 
-      if (shouldValidateDecodedHeaders(fileName) && !isLikelyGtfsCsv(decoded, fileName)) {
-        attemptedEncodings.push(`${encoding} (decoded text did not match GTFS CSV headers)`)
+      if (decoded.includes('\u0000')) {
+        attemptedEncodings.push(`${encoding} (decoded text still contained NUL bytes)`)
         continue
       }
 
@@ -669,6 +665,11 @@ async function parseExtractedFile(extractedFiles, fileName, { required = true } 
     }
 
     throw error
+  }
+
+  if (!required && fileName === 'translations.txt' && !isLikelyGtfsCsv(content, fileName)) {
+    handleOptionalFileError(fileName, new GtfsDecodeError(`Unable to decode ${fileName}. Tried: decoded text did not match GTFS CSV headers`))
+    return null
   }
 
   return parseCsv(content, fileName)
