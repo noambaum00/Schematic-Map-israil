@@ -112,7 +112,7 @@ export function getOperatorColor(operatorName: string) {
     return '#2457C5'
   }
 
-  if (normalizedName.includes('dankal') || normalizedName.includes('neta') || normalizedName.includes('light rail')) {
+  if (normalizedName.includes('dankal') || normalizedName.includes('nta') || normalizedName.includes('light rail')) {
     return '#D63B3B'
   }
 

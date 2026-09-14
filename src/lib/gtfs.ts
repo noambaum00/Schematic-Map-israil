@@ -166,25 +166,25 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
   const zip = await JSZip.loadAsync(await file.arrayBuffer())
 
   const requiredEntries = {
-    agency: findZipEntry(zip, 'agency.txt'),
-    routes: findZipEntry(zip, 'routes.txt'),
-    trips: findZipEntry(zip, 'trips.txt'),
-    stopTimes: findZipEntry(zip, 'stop_times.txt'),
-    stops: findZipEntry(zip, 'stops.txt'),
+    agency: ['agency.txt', findZipEntry(zip, 'agency.txt')] as const,
+    routes: ['routes.txt', findZipEntry(zip, 'routes.txt')] as const,
+    trips: ['trips.txt', findZipEntry(zip, 'trips.txt')] as const,
+    stopTimes: ['stop_times.txt', findZipEntry(zip, 'stop_times.txt')] as const,
+    stops: ['stops.txt', findZipEntry(zip, 'stops.txt')] as const,
   }
 
-  for (const [key, entry] of Object.entries(requiredEntries)) {
+  for (const [, [fileName, entry]] of Object.entries(requiredEntries)) {
     if (!entry) {
-      throw new Error(`Missing ${key}.txt in the GTFS archive.`)
+      throw new Error(`Missing ${fileName} in the GTFS archive.`)
     }
   }
 
   const [agencyText, routesText, tripsText, stopTimesText, stopsText] = await Promise.all([
-    requiredEntries.agency!.async('text'),
-    requiredEntries.routes!.async('text'),
-    requiredEntries.trips!.async('text'),
-    requiredEntries.stopTimes!.async('text'),
-    requiredEntries.stops!.async('text'),
+    requiredEntries.agency[1]!.async('text'),
+    requiredEntries.routes[1]!.async('text'),
+    requiredEntries.trips[1]!.async('text'),
+    requiredEntries.stopTimes[1]!.async('text'),
+    requiredEntries.stops[1]!.async('text'),
   ])
 
   const agencies = parseCsv(agencyText, agencySchema).data
