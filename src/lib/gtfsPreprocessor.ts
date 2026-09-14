@@ -1,4 +1,4 @@
-import type { WheelchairStatus } from './gtfs'
+import type { LocalizedStopNames, TransitLanguage, WheelchairStatus } from './gtfs'
 
 export const DEFAULT_MERGE_RADIUS_METERS = 200
 
@@ -13,6 +13,7 @@ const STRIPPED_NAME_PATTERNS = [
 ]
 
 export type RawStopForHubClustering = {
+  names: LocalizedStopNames
   stop_id: string
   stop_name: string
   stop_lat: number
@@ -26,6 +27,7 @@ export type RawStopForHubClustering = {
 export type HubNode = {
   id: string
   name: string
+  names: LocalizedStopNames
   latitude: number
   longitude: number
   code: string
@@ -104,6 +106,23 @@ export function areBaseNamesSimilar(leftName: string, rightName: string) {
   return minimumTokenCount > 0 && sharedTokenCount / minimumTokenCount >= 0.75
 }
 
+function pickLocalizedClusterName(stops: RawStopForHubClustering[], language: TransitLanguage) {
+  return (
+    stops
+      .map((stop) => stop.names[language])
+      .filter(Boolean)
+      .sort((left, right) => left.length - right.length || left.localeCompare(right))[0] ?? ''
+  )
+}
+
+function buildLocalizedHubNames(stops: RawStopForHubClustering[]): LocalizedStopNames {
+  return {
+    English: pickLocalizedClusterName(stops, 'English') || stops[0]?.stop_name || '',
+    'עברית': pickLocalizedClusterName(stops, 'עברית') || pickLocalizedClusterName(stops, 'English') || stops[0]?.stop_name || '',
+    'العربية': pickLocalizedClusterName(stops, 'العربية') || pickLocalizedClusterName(stops, 'English') || stops[0]?.stop_name || '',
+  }
+}
+
 function getClusterWheelchairStatus(stops: RawStopForHubClustering[]): WheelchairStatus {
   if (stops.some((stop) => stop.wheelchairStatus === 'accessible')) {
     return 'accessible'
@@ -130,6 +149,7 @@ function createSingleStopNode(stop: RawStopForHubClustering): HubNode {
     latitude: stop.stop_lat,
     longitude: stop.stop_lon,
     name: stop.stop_name,
+    names: stop.names,
     wheelchairStatus: stop.wheelchairStatus,
   }
 }
@@ -144,6 +164,7 @@ function createHubNode(hubId: string, stops: RawStopForHubClustering[]): HubNode
       .map((stop) => stop.stop_name)
       .sort((left, right) => left.length - right.length || left.localeCompare(right))[0] ??
     hubId
+  const names = buildLocalizedHubNames(sortedStops)
 
   return {
     code: sortedStops.find((stop) => stop.stop_code)?.stop_code ?? '',
@@ -152,7 +173,8 @@ function createHubNode(hubId: string, stops: RawStopForHubClustering[]): HubNode
     isTransferHub: stops.length > 1,
     latitude: centroidLatitude,
     longitude: centroidLongitude,
-    name: clusterName,
+    name: names.English || clusterName,
+    names,
     wheelchairStatus: getClusterWheelchairStatus(sortedStops),
   }
 }

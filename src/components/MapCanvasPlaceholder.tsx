@@ -17,6 +17,7 @@ import { useMemo } from 'react'
 
 import type { CanvasEdge, CanvasNode } from '../lib/canvasGraph'
 import type { ParsedRoute, TransitLanguage } from '../lib/gtfs'
+import { getDirection, interfaceText, isRtlLanguage } from '../lib/uiText'
 import { SchematicEdge } from './edges/SchematicEdge'
 import { POINode } from './nodes/POINode'
 import { TransferHubNode } from './nodes/TransferHubNode'
@@ -34,8 +35,6 @@ type MapCanvasPlaceholderProps = {
   route: ParsedRoute | null
   wrapperRef: RefObject<HTMLDivElement | null>
 }
-
-const rtlLanguages = new Set<TransitLanguage>(['עברית', 'العربية'])
 
 const emptyStates: Record<TransitLanguage, { title: string; description: string }> = {
   English: {
@@ -63,11 +62,11 @@ const edgeTypes: EdgeTypes = {
 }
 
 function getNodeLabelDirection(activeLanguage: TransitLanguage) {
-  return rtlLanguages.has(activeLanguage) ? 'rtl' : 'ltr'
+  return getDirection(activeLanguage)
 }
 
 function getNodeLabelAlignment(activeLanguage: TransitLanguage) {
-  return rtlLanguages.has(activeLanguage) ? 'end' : 'start'
+  return isRtlLanguage(activeLanguage) ? 'end' : 'start'
 }
 
 function CanvasInner({
@@ -82,7 +81,8 @@ function CanvasInner({
   route,
   wrapperRef,
 }: MapCanvasPlaceholderProps) {
-  const isRtlLanguage = rtlLanguages.has(activeLanguage)
+  const activeText = interfaceText[activeLanguage]
+  const isRtl = isRtlLanguage(activeLanguage)
   const miniMapNodeColor = useMemo(
     () => (node: CanvasNode) => {
       if (node.type === 'poi') {
@@ -102,7 +102,7 @@ function CanvasInner({
       <div className="relative z-10 flex items-center justify-between gap-4 border-b border-white/10 px-6 py-5">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">React Flow canvas</p>
-          <h2 className="mt-2 text-2xl font-semibold text-white">Interactive schematic workspace</h2>
+          <h2 className="mt-2 text-2xl font-semibold text-white">{activeText.interactiveWorkspace}</h2>
         </div>
         <div className="flex flex-wrap gap-2 text-xs text-slate-200">
           <span className="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5">Real GTFS feed</span>
@@ -123,7 +123,7 @@ function CanvasInner({
             tabIndex={0}
           >
             <p className="sr-only" id="canvas-region-description">
-              Use the interactive graph to inspect GTFS station and transfer hub nodes, reach the canvas region by keyboard focus for context, add POI nodes from the sidebar, draw pointer-based octilinear manual connections, and export the full React Flow canvas as SVG.
+              {activeText.canvasRegionDescription}
             </p>
             <ReactFlow<CanvasNode, CanvasEdge>
               attributionPosition="bottom-left"
@@ -183,15 +183,15 @@ function CanvasInner({
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">Canvas tips</p>
             <ul className="mt-4 space-y-3 text-sm text-slate-300">
               <li>• Drag GTFS stations, transfer hubs, or POI nodes with 20px grid snapping.</li>
-              <li>• Octilinear edges automatically route with horizontal, vertical, and 45° segments.</li>
-              <li>• Select a POI node, then edit its label from the sidebar.</li>
+              <li>• {activeText.drawLinks}</li>
+              <li>• {activeText.editPoi}</li>
             </ul>
           </article>
 
           <article className="rounded-[1.75rem] border border-white/10 bg-slate-950/60 p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">Active language</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">{activeText.activeLanguage}</p>
             <p className="mt-4 text-sm text-slate-300">
-              Canvas labels are aligned for {isRtlLanguage ? 'RTL' : 'LTR'} reading order using{' '}
+              {activeText.nodeLabelsDescription} {isRtl ? 'RTL' : 'LTR'} reading order using{' '}
               <code>{getNodeLabelDirection(activeLanguage)}</code> text direction and{' '}
               <code>{getNodeLabelAlignment(activeLanguage)}</code> alignment.
             </p>
@@ -199,7 +199,7 @@ function CanvasInner({
 
           {route?.trainTemplateLabel ? (
             <article className="rounded-[1.75rem] border border-cyan-400/20 bg-cyan-400/10 p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-100">Train number template</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-100">{activeText.trainNumberTemplate}</p>
               <p className="mt-4 text-sm text-cyan-50">Rendered on the longest octilinear segment: {route.trainTemplateLabel}</p>
             </article>
           ) : null}

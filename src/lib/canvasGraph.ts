@@ -27,6 +27,11 @@ function getAlignment(activeLanguage: TransitLanguage): 'left' | 'right' {
   return activeLanguage === 'English' ? 'left' : 'right'
 }
 
+function getStopLabel(route: ParsedRoute, stopId: string, activeLanguage: TransitLanguage) {
+  const stop = route.stops.find((routeStop) => routeStop.id === stopId)
+  return stop?.names[activeLanguage] || stop?.name || stopId
+}
+
 export function buildTransitGraph(
   route: ParsedRoute | null,
   activeLanguage: TransitLanguage,
@@ -52,7 +57,7 @@ export function buildTransitGraph(
         direction,
         isTransferHub: stop.isTransferHub,
         wheelchairStatus: stop.wheelchairStatus,
-        label: stop.name,
+        label: getStopLabel(route, stop.id, activeLanguage),
         operatorColor: route.operatorColor,
         textAlign,
       },

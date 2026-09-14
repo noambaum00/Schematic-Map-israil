@@ -1,11 +1,13 @@
 import type { ParsedFeed, ParsedRoute, TransitLanguage } from '../lib/gtfs'
 import { algorithmPlans, architectureSections, operatorColors, packageGroups } from '../data/transitPlan'
+import { interfaceText } from '../lib/uiText'
 
 type SidebarProps = {
   activeLanguage: TransitLanguage
   exportError: string | null
   feed: ParsedFeed | null
   isExporting: boolean
+  isSharing: boolean
   isLoading: boolean
   loadError: string | null
   onAddPoi: () => void
@@ -14,10 +16,13 @@ type SidebarProps = {
   onLanguageChange: (language: TransitLanguage) => void
   onPoiLabelChange: (value: string) => void
   onRouteSelect: (routeId: string) => void
+  onShareMap: () => void
   poiLabel: string
   query: string
   routes: ParsedRoute[]
   selectedRouteId: string | null
+  shareError: string | null
+  shareMessage: string | null
   onQueryChange: (value: string) => void
 }
 
@@ -28,6 +33,7 @@ export function Sidebar({
   exportError,
   feed,
   isExporting,
+  isSharing,
   isLoading,
   loadError,
   onAddPoi,
@@ -36,35 +42,44 @@ export function Sidebar({
   onLanguageChange,
   onPoiLabelChange,
   onRouteSelect,
+  onShareMap,
   poiLabel,
   query,
   routes,
   selectedRouteId,
+  shareError,
+  shareMessage,
   onQueryChange,
 }: SidebarProps) {
-  const resultLabel = `${routes.length} route${routes.length === 1 ? '' : 's'} shown from the loaded GTFS feed`
+  const text = interfaceText[activeLanguage]
+  const resultLabel = text.resultLabel
+    .replace('{count}', String(routes.length))
+    .replace('{plural}', routes.length === 1 ? '' : activeLanguage === 'English' ? 's' : activeLanguage === 'עברית' ? 'ים' : 'وط')
   const hasSelectedPoi = poiLabel.length > 0
 
   return (
-    <aside className="flex h-full flex-col gap-6 overflow-y-auto border-b border-white/10 bg-slate-950/70 p-6 backdrop-blur xl:border-b-0 xl:border-r">
+    <aside
+      className={`flex h-full flex-col gap-6 overflow-y-auto border-b border-white/10 bg-slate-950/70 p-6 backdrop-blur xl:border-b-0 ${
+        activeLanguage === 'English' ? 'xl:border-r' : 'xl:border-l'
+      }`}
+    >
       <div className="space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Phase 5</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">{text.phase}</p>
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-white">Israel schematic map planner</h1>
           <p className="mt-2 text-sm text-slate-300">
-            Load a real GTFS zip, render clustered transfer hubs with octilinear route geometry, add POIs,
-            and export the complete React Flow canvas as a high-resolution SVG.
+            {text.canvasRegionDescription}
           </p>
         </div>
       </div>
 
       <section className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-white">GTFS source</h2>
-          <span className="rounded-full bg-cyan-400/10 px-3 py-1 text-xs text-cyan-200">Real data only</span>
+          <h2 className="text-sm font-semibold text-white">{text.gtfsSource}</h2>
+          <span className="rounded-full bg-cyan-400/10 px-3 py-1 text-xs text-cyan-200">{text.realDataOnly}</span>
         </div>
         <label className="block text-sm text-slate-300" htmlFor="gtfs-file">
-          Upload an official Israel MOT GTFS zip archive
+          {text.uploadGtfs}
         </label>
         <input
           accept=".zip,application/zip"
@@ -77,25 +92,31 @@ export function Sidebar({
           {isLoading
             ? 'Parsing GTFS archive…'
             : feed
-              ? `Loaded ${feed.fileName} · ${feed.routes.length} routes · ${feed.trips} trips · ${feed.stops} stops · ${feed.hubStops} hubs`
-              : 'No feed loaded yet.'}
+              ? text.loadedFeedNotice
+                  .replace('{fileName}', feed.fileName)
+                  .replace('{routes}', String(feed.routes.length))
+                  .replace('{trips}', String(feed.trips))
+                  .replace('{stops}', String(feed.stops))
+                  .replace('{hubs}', String(feed.hubStops))
+              : text.noFeedLoaded}
         </p>
+        {shareMessage ? <p className="text-sm text-cyan-200">{shareMessage}</p> : null}
         {loadError ? <p className="text-sm text-rose-300">{loadError}</p> : null}
       </section>
 
       <section className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-white">Search &amp; selection</h2>
+          <h2 className="text-sm font-semibold text-white">{text.searchAndSelection}</h2>
           <span className="rounded-full bg-cyan-400/10 px-3 py-1 text-xs text-cyan-200">GTFS-aware</span>
         </div>
         <label className="block text-sm text-slate-300" htmlFor="route-query">
-          Search rail, light rail, or bus lines
+          {text.searchRailLightBus}
         </label>
         <input
           aria-describedby="route-query-status"
           id="route-query"
           className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300"
-          placeholder="e.g. A1, Red Line, 480"
+          placeholder={text.searchPlaceholder}
           type="search"
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
@@ -110,7 +131,7 @@ export function Sidebar({
             return (
               <button
                 key={route.id}
-                className={`block w-full rounded-2xl border p-3 text-left transition ${
+                className={`block w-full rounded-2xl border p-3 text-start transition ${
                   isSelected
                     ? 'border-cyan-300 bg-cyan-300/10'
                     : 'border-white/10 bg-slate-950/40 hover:border-white/30'
@@ -141,14 +162,14 @@ export function Sidebar({
             )
           })}
           {routes.length === 0 ? (
-            <p className="text-sm text-slate-500">{feed ? 'No routes match the current search.' : 'Load a feed to browse routes.'}</p>
+            <p className="text-sm text-slate-500">{feed ? text.noRoutesMatch : text.loadFeedToBrowse}</p>
           ) : null}
         </div>
       </section>
 
       <section className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-white">POI nodes</h2>
+          <h2 className="text-sm font-semibold text-white">{text.poiNodes}</h2>
           <span className="rounded-full bg-amber-400/10 px-3 py-1 text-xs text-amber-200">React Flow</span>
         </div>
         <button
@@ -156,27 +177,27 @@ export function Sidebar({
           type="button"
           onClick={onAddPoi}
         >
-          Add POI to canvas center
+          {text.addPoi}
         </button>
         <label className="block text-sm text-slate-300" htmlFor="poi-label">
-          Selected POI label
+          {text.selectPoiLabel}
         </label>
         <input
           id="poi-label"
           className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
           disabled={!hasSelectedPoi}
-          placeholder="Select a POI node to edit its label"
+          placeholder={text.selectPoiLabel}
           type="text"
           value={poiLabel}
           onChange={(event) => onPoiLabelChange(event.target.value)}
         />
-        <p className="text-sm text-slate-400">Create a POI, click it on the canvas, then edit its label here.</p>
+        <p className="text-sm text-slate-400">{text.poiDescription}</p>
       </section>
 
       <section className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-white">Export</h2>
-          <span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs text-emerald-200">SVG</span>
+          <h2 className="text-sm font-semibold text-white">{text.export}</h2>
+          <span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs text-emerald-200">{text.vectorSvg}</span>
         </div>
         <button
           className="w-full rounded-2xl border border-emerald-300/40 bg-emerald-400/10 px-4 py-3 text-sm font-medium text-emerald-100 transition hover:border-emerald-200 hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-50"
@@ -184,15 +205,32 @@ export function Sidebar({
           type="button"
           onClick={onExportSvg}
         >
-          {isExporting ? 'Exporting SVG…' : 'Export SVG'}
+          {isExporting ? text.exportingSvg : text.exportSvg}
         </button>
-        <p className="text-sm text-slate-400">Temporarily fits the full graph into view before capturing `.react-flow__viewport`.</p>
+        <p className="text-sm text-slate-400">{text.exportDescription}</p>
         {exportError ? <p className="text-sm text-rose-300">{exportError}</p> : null}
+      </section>
+
+      <section className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-white">{text.shareMap}</h2>
+          <span className="rounded-full bg-violet-400/10 px-3 py-1 text-xs text-violet-200">URL</span>
+        </div>
+        <button
+          className="w-full rounded-2xl border border-violet-300/40 bg-violet-400/10 px-4 py-3 text-sm font-medium text-violet-100 transition hover:border-violet-200 hover:bg-violet-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={isSharing}
+          type="button"
+          onClick={onShareMap}
+        >
+          {text.shareMap}
+        </button>
+        <p className="text-sm text-slate-400">{text.shareDescription}</p>
+        {shareError ? <p className="text-sm text-rose-300">{shareError}</p> : null}
       </section>
 
       <fieldset className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center justify-between">
-          <legend className="text-sm font-semibold text-white">Language</legend>
+          <legend className="text-sm font-semibold text-white">{text.language}</legend>
           <span className="text-xs text-slate-400">RTL/LTR ready</span>
         </div>
         <div className="grid grid-cols-3 gap-2">
@@ -220,8 +258,8 @@ export function Sidebar({
 
       <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-white">Architecture</h2>
-          <span className="text-xs text-slate-400">Phase 5</span>
+          <h2 className="text-sm font-semibold text-white">{text.architecture}</h2>
+          <span className="text-xs text-slate-400">{text.phase}</span>
         </div>
         {architectureSections.map((section) => (
           <article key={section.title} className="space-y-2">

@@ -44,7 +44,7 @@ export const architectureSections: ArchitectureSection[] = [
     title: 'In-browser GTFS ingestion',
     summary: 'Load a real GTFS zip directly in the browser with no mock data layer.',
     bullets: [
-      'Parse agency, routes, trips, stop_times, and stops from the uploaded MOT GTFS archive.',
+      'Parse agency, routes, trips, stop_times, stops, and optional translations from the uploaded MOT GTFS archive.',
       'Validate required columns with Zod before building route summaries and stop sequences.',
       'Keep the feed ephemeral in client state so GitHub Pages can host the app without a backend.',
     ],
@@ -60,11 +60,12 @@ export const architectureSections: ArchitectureSection[] = [
     ],
   },
   {
-    title: 'Client-side export + Pages hosting',
+    title: 'Client-side sharing + Pages hosting',
     summary: 'Keep collaboration and publishing compatible with a static GitHub Pages deployment.',
     bullets: [
-      'Use html-to-image to capture the fitted React Flow viewport as a downloadable SVG.',
-      'Preserve the Vite base path required for repository-based GitHub Pages hosting.',
+      'Use html-to-image to capture the fitted React Flow canvas as a downloadable SVG.',
+      'Serialize selected routes, POIs, and node positions into a compressed URL-safe permalink.',
+      'Preserve the Vite base path and hash-based sharing required for repository-based GitHub Pages hosting.',
       'Avoid server-only dependencies so the same build works locally and on Pages.',
     ],
   },
@@ -84,8 +85,8 @@ export const packageGroups: PackageGroup[] = [
     packages: ['@xyflow/react', 'html-to-image'],
   },
   {
-    category: 'Next feature slices',
-    packages: ['nuqs', 'i18next', 'react-i18next', 'jspdf'],
+    category: 'State sharing',
+    packages: ['lz-string'],
   },
 ]
 
@@ -115,6 +116,15 @@ export const algorithmPlans: AlgorithmPlan[] = [
       'Convert the center of the visible React Flow pane into flow coordinates before creating a POI node.',
       'Let React Flow handle manual onConnect edges between POI and GTFS nodes.',
       'Fit the graph into view before calling html-to-image on `.react-flow` so exports include the whole canvas and edge labels.',
+    ],
+  },
+  {
+    title: 'State serialization + restore',
+    goal: 'Share the current schematic through a compressed GitHub Pages-safe URL and restore it later.',
+    steps: [
+      'Collect the selected route IDs, POI nodes, manual edges, and current node positions from the live canvas state.',
+      'Compress the JSON payload with lz-string before writing it to a hash-based URL parameter.',
+      'Read the shared payload on startup and re-apply it after the matching GTFS feed is loaded.',
     ],
   },
   {

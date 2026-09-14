@@ -2,13 +2,13 @@
 
 A Vite + React + TypeScript app for generating schematic transit views for Israel's public transportation network.
 
-## Phase 5 status
+## Phase 6 status
 
-This phase upgrades the React Flow rendering to look more like a classic schematic transit diagram, using dedicated transfer-hub nodes, octilinear route edges, and grid-snapped dragging.
+This phase adds shareable URL state, GitHub Pages-safe restoration, and multilingual hub/station labels on top of the schematic React Flow canvas.
 
 ### Implemented now
 - upload and parse a real Israel MOT GTFS zip archive in the browser
-- derive live route summaries from `agency.txt`, `routes.txt`, `trips.txt`, `stop_times.txt`, and `stops.txt`
+- derive live route summaries from `agency.txt`, `routes.txt`, `trips.txt`, `stop_times.txt`, `stops.txt`, and optional `translations.txt`
 - preprocess GTFS stops into transfer hubs using parent_station hierarchy first and geospatial proximity second
 - remap route stop sequences through a stop-to-hub dictionary before generating graph edges
 - render the selected route as a React Flow graph with draggable transit station and transfer-hub nodes
@@ -19,12 +19,16 @@ This phase upgrades the React Flow rendering to look more like a classic schemat
 - edit the selected POI label from the sidebar
 - manually draw new edges between POI and transit nodes with standard React Flow connections
 - export the full fitted graph as a vector SVG using `html-to-image`
+- compress selected routes, POIs, manual links, and node positions into a shareable map URL with `lz-string`
+- restore shared route/layout state from GitHub Pages-safe `#/?state=...` links
+- switch stop and hub labels dynamically between English, Hebrew, and Arabic without resetting manual node positions
+- apply RTL/LTR document direction dynamically when Hebrew or Arabic is selected
 - snap node dragging to a `20 x 20` grid for cleaner manual schematic adjustments
 - use the included Vite base-path configuration and GitHub Actions workflow for GitHub Pages publishing on pushes to `main`
 
 ## New npm dependencies
 
-- no new packages are required for the Phase 5 schematic styling work
+- `lz-string` for compressed URL-safe state serialization
 - optional future alternative: `@turf/distance` or `geolib` if you prefer external geospatial helpers
 - existing canvas/export packages remain `@xyflow/react` and `html-to-image`
 
@@ -35,7 +39,7 @@ npm install
 npm run dev
 ```
 
-Then open the app, upload an official MOT GTFS `.zip` archive, drag stations and hubs on the schematic grid, add POIs from the sidebar, and export the current graph as SVG.
+Then open the app, upload an official MOT GTFS `.zip` archive, drag stations and hubs on the schematic grid, add POIs, copy a share link, and export the current graph as SVG.
 
 ## GitHub Pages publishing
 
@@ -60,12 +64,19 @@ The current parser reads and preprocesses:
 - `trips.txt`
 - `stop_times.txt`
 - `stops.txt`
+- `translations.txt` (optional)
 
-It uses the longest available trip pattern per route as the initial graph source, preserves wheelchair status as accessible, inaccessible, or unknown, and merges clustered stops into centroid-based transfer hubs with `constituent_stop_ids` metadata.
+It uses the longest available trip pattern per route as the initial graph source, preserves wheelchair status as accessible, inaccessible, or unknown, merges clustered stops into centroid-based transfer hubs with `constituent_stop_ids` metadata, and now keeps localized English, Hebrew, and Arabic stop names when available.
 
 ## Export behavior
 
 Before exporting, the app temporarily calls React Flow fit-to-view behavior so the entire graph is inside the viewport bounds. The export utility then captures `.react-flow` so both the graph and edge-label overlays are included, and triggers an automatic `.svg` download.
+
+## Shareable state behavior
+
+- the app writes compressed shared state into `#/?state=...` so GitHub Pages can open shared links without server-side routing
+- saved state includes the selected route IDs, POI nodes, manual POI connections, and current node positions
+- when a shared URL is opened, the app restores the saved language immediately and reapplies the saved canvas state after the matching GTFS feed is uploaded
 
 ## Schematic rendering behavior
 

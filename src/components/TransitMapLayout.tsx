@@ -12,28 +12,26 @@ import { buildTransitGraph, connectCanvasEdge } from '../lib/canvasGraph'
 import { exportFlowAsSvg } from '../lib/exportFlowAsSvg'
 import type { ParsedFeed, ParsedRoute, TransitLanguage } from '../lib/gtfs'
 import { parseGtfsArchive } from '../lib/gtfs'
+import { buildShareableMapState, buildShareableMapUrl, readSharedStateFromUrl } from '../lib/shareableState'
+import { getDirection, getTextAlignment, interfaceText } from '../lib/uiText'
 import { MapCanvasPlaceholder } from './MapCanvasPlaceholder'
 import { Sidebar } from './Sidebar'
 
 const defaultLanguage: TransitLanguage = 'English'
 
-function getDirection(activeLanguage: TransitLanguage): 'ltr' | 'rtl' {
-  return activeLanguage === 'English' ? 'ltr' : 'rtl'
-}
-
-function getAlignment(activeLanguage: TransitLanguage): 'left' | 'right' {
-  return activeLanguage === 'English' ? 'left' : 'right'
-}
-
 export function TransitMapLayout() {
+  const initialSharedState = useMemo(() => readSharedStateFromUrl(), [])
   const [query, setQuery] = useState('')
-  const [language, setLanguage] = useState<TransitLanguage>(defaultLanguage)
+  const [language, setLanguage] = useState<TransitLanguage>(initialSharedState.state?.language ?? defaultLanguage)
   const [feed, setFeed] = useState<ParsedFeed | null>(null)
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const [isSharing, setIsSharing] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(initialSharedState.error)
   const [exportError, setExportError] = useState<string | null>(null)
+  const [shareMessage, setShareMessage] = useState<string | null>(null)
+  const [shareError, setShareError] = useState<string | null>(null)
   const [poiNodes, setPoiNodes] = useState<POICanvasNode[]>([])
   const [manualEdges, setManualEdges] = useState<CanvasEdge[]>([])
   const [transitNodePositions, setTransitNodePositions] = useState<Record<string, XYPosition>>({})
@@ -42,7 +40,9 @@ export function TransitMapLayout() {
   const latestRequestId = useRef(0)
   const nodesRef = useRef<CanvasNode[]>([])
   const poiCounterRef = useRef(1)
+  const hasAppliedSharedStateRef = useRef(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
+  const text = interfaceText[language]
 
   const allRoutes = useMemo(() => feed?.routes ?? [], [feed?.routes])
 
@@ -77,7 +77,7 @@ export function TransitMapLayout() {
 
   const nodes = useMemo<CanvasNode[]>(() => {
     const poiDirection = getDirection(language)
-    const poiTextAlign = getAlignment(language)
+    const poiTextAlign = getTextAlignment(language)
     const transitNodes = baseGraph.nodes.map((node) => ({
       ...node,
       position: transitNodePositions[node.id] ?? node.position,
@@ -104,6 +104,25 @@ export function TransitMapLayout() {
     const selectedNode = nodes.find((node) => node.id === selectedPoiId)
     return selectedNode?.type === 'poi' ? selectedNode.data.label : ''
   }, [nodes, selectedPoiId])
+
+  useEffect(() => {
+    document.documentElement.dir = getDirection(language)
+    document.body.dir = getDirection(language)
+    document.documentElement.lang = language === 'English' ? 'en' : language === 'עברית' ? 'he' : 'ar'
+  }, [language])
+
+  useEffect(() => {
+    if (!shareMessage && !shareError) {
+      return
+    }
+
+    const timeout = window.setTimeout(() => {
+      setShareMessage(null)
+      setShareError(null)
+    }, 2500)
+
+    return () => window.clearTimeout(timeout)
+  }, [shareError, shareMessage])
 
   useEffect(() => {
     if (!reactFlowInstance || baseGraph.nodes.length === 0) {
@@ -144,7 +163,36 @@ export function TransitMapLayout() {
       }
 
       setFeed(parsedFeed)
-      setSelectedRouteId(parsedFeed.routes[0]?.id ?? null)
+      const sharedState = initialSharedState.state
+      const sharedRouteId = sharedState?.selectedRouteIds.find((routeId) => parsedFeed.routes.some((route) => route.id === routeId)) ?? null
+
+      setSelectedRouteId(sharedRouteId ?? parsedFeed.routes[0]?.id ?? null)
+
+      if (sharedState && !hasAppliedSharedStateRef.current) {
+        setTransitNodePositions(sharedState.nodePositions)
+        setPoiNodes(
+          sharedState.poiNodes.map((node) => ({
+            data: {
+              direction: getDirection(sharedState.language),
+              label: node.label,
+              textAlign: getTextAlignment(sharedState.language),
+            },
+            id: node.id,
+            position: { x: node.x, y: node.y },
+            type: 'poi',
+          })),
+        )
+        setManualEdges(
+          sharedState.manualEdges.map((edge, index) => ({
+            id: `shared-edge-${edge.source}-${edge.target}-${index + 1}`,
+            source: edge.source,
+            style: { stroke: '#f8fafc', strokeDasharray: '10 6', strokeWidth: 3 },
+            target: edge.target,
+            type: 'schematic',
+          })),
+        )
+        hasAppliedSharedStateRef.current = true
+      }
     } catch (error) {
       if (latestRequestId.current !== requestId) {
         return
@@ -165,6 +213,36 @@ export function TransitMapLayout() {
     setSelectedRouteId(routeId)
     setExportError(null)
     setLoadError(null)
+  }
+
+  async function handleShareMap() {
+    try {
+      setIsSharing(true)
+      setShareError(null)
+
+      const networkNodePositions = nodes
+        .filter((node) => node.type === 'transit' || node.type === 'hub')
+        .reduce<Record<string, XYPosition>>((positions, node) => {
+          positions[node.id] = node.position
+          return positions
+        }, {})
+      const shareState = buildShareableMapState({
+        language,
+        manualEdges,
+        networkNodePositions,
+        poiNodes,
+        selectedRouteIds: selectedRouteId ? [selectedRouteId] : [],
+      })
+      const shareUrl = buildShareableMapUrl(shareState)
+
+      window.history.replaceState(null, '', shareUrl)
+      await navigator.clipboard.writeText(shareUrl)
+      setShareMessage(text.shareCopied)
+    } catch {
+      setShareError(text.shareCopyFailed)
+    } finally {
+      setIsSharing(false)
+    }
   }
 
   function handleNodesChange(changes: Parameters<typeof applyNodeChanges<CanvasNode>>[0]) {
@@ -213,7 +291,7 @@ export function TransitMapLayout() {
         data: {
           direction: getDirection(language),
           label: `Point of Interest ${poiIndex}`,
-          textAlign: getAlignment(language),
+          textAlign: getTextAlignment(language),
         },
         id: poiId,
         position,
@@ -265,18 +343,24 @@ export function TransitMapLayout() {
   }
 
   return (
-    <main className="mx-auto grid min-h-screen w-full max-w-[1800px] gap-6 px-4 py-4 text-left xl:grid-cols-[420px_minmax(0,1fr)] xl:px-6 xl:py-6">
+    <main
+      className="mx-auto grid min-h-screen w-full max-w-[1800px] gap-6 px-4 py-4 text-start xl:grid-cols-[420px_minmax(0,1fr)] xl:px-6 xl:py-6"
+      dir={getDirection(language)}
+    >
       <Sidebar
         activeLanguage={language}
         exportError={exportError}
         feed={feed}
         isExporting={isExporting}
+        isSharing={isSharing}
         isLoading={isLoading}
         loadError={loadError}
         poiLabel={selectedPoiLabel}
         query={query}
         routes={filteredRoutes}
         selectedRouteId={selectedRouteId}
+        shareError={shareError}
+        shareMessage={shareMessage ?? (initialSharedState.state && !feed ? text.loadFeedToRestoreSharedMap : null)}
         onAddPoi={handleAddPoi}
         onExportSvg={handleExportSvg}
         onFileSelected={handleFileSelected}
@@ -284,6 +368,7 @@ export function TransitMapLayout() {
         onPoiLabelChange={handlePoiLabelChange}
         onQueryChange={setQuery}
         onRouteSelect={handleRouteSelect}
+        onShareMap={handleShareMap}
       />
       <MapCanvasPlaceholder
         activeLanguage={language}

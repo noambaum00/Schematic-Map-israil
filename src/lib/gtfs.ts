@@ -27,6 +27,17 @@ const tripSchema = z.object({
   trip_headsign: z.string().optional().default(''),
 })
 
+const translationSchema = z.object({
+  field_name: z.string().optional().default(''),
+  field_value: z.string().optional().default(''),
+  language: z.string().optional().default(''),
+  lang: z.string().optional().default(''),
+  record_id: z.string().optional().default(''),
+  table_name: z.string().optional().default(''),
+  trans_id: z.string().optional().default(''),
+  translation: z.string().optional().default(''),
+})
+
 const stopTimeSchema = z.object({
   trip_id: z.string().min(1),
   stop_id: z.string().min(1),
@@ -39,6 +50,10 @@ const stopSchema = z.object({
   stop_lat: z.string().optional().default('0'),
   stop_lon: z.string().optional().default('0'),
   stop_code: z.string().optional().default(''),
+  stop_name_ar: z.string().optional().default(''),
+  stop_name_en: z.string().optional().default(''),
+  stop_name_he: z.string().optional().default(''),
+  stop_name_iw: z.string().optional().default(''),
   wheelchair_boarding: z.string().optional().default('0'),
   parent_station: z.string().optional().default(''),
   location_type: z.string().optional().default('0'),
@@ -49,9 +64,11 @@ type RouteRow = z.infer<typeof routeSchema>
 type TripRow = z.infer<typeof tripSchema>
 type StopTimeRow = z.infer<typeof stopTimeSchema>
 type StopRow = z.infer<typeof stopSchema>
+type TranslationRow = z.infer<typeof translationSchema>
 
 export type TransitMode = 'rail' | 'light-rail' | 'bus'
 export type TransitLanguage = 'English' | 'עברית' | 'العربية'
+export type LocalizedStopNames = Record<TransitLanguage, string>
 
 export type WheelchairStatus = 'accessible' | 'inaccessible' | 'unknown'
 
@@ -64,6 +81,7 @@ export type ParsedStop = {
   wheelchairStatus: WheelchairStatus
   isTransferHub: boolean
   constituent_stop_ids: string[]
+  names: LocalizedStopNames
 }
 
 export type ParsedRoute = {
@@ -133,6 +151,56 @@ function buildRouteLabel(route: RouteRow) {
   return parts.join(' — ') || route.route_id
 }
 
+function mapTranslationLanguage(value: string): TransitLanguage | null {
+  const normalizedValue = value.trim().toLowerCase()
+
+  if (normalizedValue.startsWith('en')) {
+    return 'English'
+  }
+
+  if (normalizedValue.startsWith('he') || normalizedValue.startsWith('iw')) {
+    return 'עברית'
+  }
+
+  if (normalizedValue.startsWith('ar')) {
+    return 'العربية'
+  }
+
+  return null
+}
+
+function buildTranslationMap(translations: TranslationRow[]) {
+  const translationMap = new Map<string, Partial<LocalizedStopNames>>()
+
+  for (const translation of translations) {
+    if (translation.table_name !== 'stops' || translation.field_name !== 'stop_name' || !translation.record_id) {
+      continue
+    }
+
+    const language = mapTranslationLanguage(translation.language || translation.lang)
+
+    if (!language || !translation.translation) {
+      continue
+    }
+
+    const localizedNames = translationMap.get(translation.record_id) ?? {}
+    localizedNames[language] = translation.translation
+    translationMap.set(translation.record_id, localizedNames)
+  }
+
+  return translationMap
+}
+
+function buildStopNames(stop: StopRow, translationMap: Map<string, Partial<LocalizedStopNames>>): LocalizedStopNames {
+  const translatedNames = translationMap.get(stop.stop_id)
+
+  return {
+    English: translatedNames?.English || stop.stop_name_en || stop.stop_name,
+    'עברית': translatedNames?.['עברית'] || stop.stop_name_he || stop.stop_name_iw || stop.stop_name,
+    'العربية': translatedNames?.['العربية'] || stop.stop_name_ar || stop.stop_name,
+  }
+}
+
 function normalizeTrainTemplate(value: string) {
   const cleaned = value.trim().toUpperCase()
 
@@ -182,9 +250,10 @@ function parseWheelchairStatus(value: string): WheelchairStatus {
   return 'unknown'
 }
 
-function buildClusterableStop(stop: StopRow): RawStopForHubClustering {
+function buildClusterableStop(stop: StopRow, translationMap: Map<string, Partial<LocalizedStopNames>>): RawStopForHubClustering {
   return {
     location_type: stop.location_type,
+    names: buildStopNames(stop, translationMap),
     parent_station: stop.parent_station,
     stop_code: stop.stop_code,
     stop_id: stop.stop_id,
@@ -199,6 +268,7 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
   const zip = await JSZip.loadAsync(await file.arrayBuffer())
 
   const agencyEntry = findZipEntry(zip, 'agency.txt')
+  const translationsEntry = findZipEntry(zip, 'translations.txt')
   const requiredEntries = {
     routes: ['routes.txt', findZipEntry(zip, 'routes.txt')] as const,
     trips: ['trips.txt', findZipEntry(zip, 'trips.txt')] as const,
@@ -212,12 +282,13 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
     }
   }
 
-  const [agencyText, routesText, tripsText, stopTimesText, stopsText] = await Promise.all([
+  const [agencyText, routesText, tripsText, stopTimesText, stopsText, translationsText] = await Promise.all([
     agencyEntry?.async('text') ?? Promise.resolve(''),
     requiredEntries.routes[1]!.async('text'),
     requiredEntries.trips[1]!.async('text'),
     requiredEntries.stopTimes[1]!.async('text'),
     requiredEntries.stops[1]!.async('text'),
+    translationsEntry?.async('text') ?? Promise.resolve(''),
   ])
 
   const agencies = agencyText ? parseCsv(agencyText, agencySchema, 'agency.txt').data : []
@@ -225,11 +296,13 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
   const trips = parseCsv(tripsText, tripSchema, 'trips.txt').data
   const stopTimes = parseCsv(stopTimesText, stopTimeSchema, 'stop_times.txt').data
   const stops = parseCsv(stopsText, stopSchema, 'stops.txt').data
+  const translations = translationsText ? parseCsv(translationsText, translationSchema, 'translations.txt').data : []
+  const translationMap = buildTranslationMap(translations)
 
   const agencyMap = new Map<string, AgencyRow>()
   const tripsByRoute = new Map<string, TripRow[]>()
   const stopTimesByTrip = new Map<string, StopTimeRow[]>()
-  const clusteredStops = clusterStopsIntoTransferHubs(stops.map(buildClusterableStop))
+  const clusteredStops = clusterStopsIntoTransferHubs(stops.map((stop) => buildClusterableStop(stop, translationMap)))
   const clusteredStopMap = new Map(clusteredStops.hubNodes.map((stop) => [stop.id, stop]))
   const singleAgency = agencies.length === 1 ? agencies[0] : null
 
@@ -301,6 +374,7 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
           latitude: stop.latitude,
           longitude: stop.longitude,
           name: stop.name,
+          names: stop.names,
           wheelchairStatus: stop.wheelchairStatus,
         }))
 
