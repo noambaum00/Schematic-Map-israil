@@ -18,7 +18,10 @@ import type { CanvasEdge, CanvasNode } from '../lib/canvasGraph'
 import type { ParsedRoute, TransitLanguage } from '../lib/gtfs'
 import { getDirection, interfaceText, isRtlLanguage } from '../lib/uiText'
 import { Legend } from './Legend'
+import { FlowEdge } from './edges/FlowEdge'
+import { RoundedStepEdge } from './edges/RoundedStepEdge'
 import { SchematicEdge } from './edges/SchematicEdge'
+import { StraightLineEdge } from './edges/StraightLineEdge'
 import { POINode } from './nodes/POINode'
 import { TransferHubNode } from './nodes/TransferHubNode'
 import { TransitStopNode } from './nodes/TransitStopNode'
@@ -58,7 +61,10 @@ const nodeTypes: NodeTypes = {
 }
 
 const edgeTypes: EdgeTypes = {
+  default: FlowEdge,
   schematic: SchematicEdge,
+  smoothstep: RoundedStepEdge,
+  straight: StraightLineEdge,
 }
 
 function getNodeLabelDirection(activeLanguage: TransitLanguage) {

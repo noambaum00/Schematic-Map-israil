@@ -160,6 +160,7 @@ export function TransitMapLayout() {
 
   function resetCanvasState() {
     hasAppliedSharedStateRef.current = false
+    setGlobalEdgeStyle('schematic')
     setRouteEdgeCustomizations({})
     setPoiNodes([])
     setManualEdges([])
@@ -288,6 +289,7 @@ export function TransitMapLayout() {
         return (sourceIsPoi && targetIsRouteStop) || (targetIsPoi && sourceIsRouteStop)
       }),
     )
+    setSelectedEdgeId(null)
     setSelectedRouteId(routeId)
     setExportError(null)
     setLoadError(null)
