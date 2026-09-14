@@ -85,7 +85,7 @@ type ParsedCsvResult<T> = {
   data: T[]
 }
 
-function parseCsv<T extends z.ZodTypeAny>(content: string, schema: T): ParsedCsvResult<z.infer<T>> {
+function parseCsv<T extends z.ZodTypeAny>(content: string, schema: T, fileName: string): ParsedCsvResult<z.infer<T>> {
   const parsed = Papa.parse<Record<string, string>>(content, {
     header: true,
     skipEmptyLines: true,
@@ -93,11 +93,15 @@ function parseCsv<T extends z.ZodTypeAny>(content: string, schema: T): ParsedCsv
   })
 
   if (parsed.errors.length > 0) {
-    throw new Error(parsed.errors[0]?.message ?? 'Failed to parse GTFS CSV file.')
+    throw new Error(`Failed to parse ${fileName}: ${parsed.errors[0]?.message ?? 'Invalid CSV structure.'}`)
   }
 
-  const data = parsed.data.map((row) => schema.parse(row))
-  return { data }
+  try {
+    const data = parsed.data.map((row) => schema.parse(row))
+    return { data }
+  } catch {
+    throw new Error(`Failed to validate ${fileName}: one or more GTFS rows are missing required fields.`)
+  }
 }
 
 function findZipEntry(zip: JSZip, fileName: string) {
@@ -187,11 +191,11 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
     requiredEntries.stops[1]!.async('text'),
   ])
 
-  const agencies = agencyText ? parseCsv(agencyText, agencySchema).data : []
-  const routes = parseCsv(routesText, routeSchema).data
-  const trips = parseCsv(tripsText, tripSchema).data
-  const stopTimes = parseCsv(stopTimesText, stopTimeSchema).data
-  const stops = parseCsv(stopsText, stopSchema).data
+  const agencies = agencyText ? parseCsv(agencyText, agencySchema, 'agency.txt').data : []
+  const routes = parseCsv(routesText, routeSchema, 'routes.txt').data
+  const trips = parseCsv(tripsText, tripSchema, 'trips.txt').data
+  const stopTimes = parseCsv(stopTimesText, stopTimeSchema, 'stop_times.txt').data
+  const stops = parseCsv(stopsText, stopSchema, 'stops.txt').data
 
   const agencyMap = new Map<string, AgencyRow>()
   const stopMap = new Map<string, StopRow>()
@@ -219,6 +223,10 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
     stopTimesByTrip.set(stopTime.trip_id, tripStops)
   }
 
+  for (const tripStops of stopTimesByTrip.values()) {
+    tripStops.sort((left, right) => Number(left.stop_sequence) - Number(right.stop_sequence))
+  }
+
   const parsedRoutes = routes
     .map((route) => {
       const routeTrips = tripsByRoute.get(route.route_id) ?? []
@@ -231,10 +239,7 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
       let representativeStopIds: string[] = []
 
       for (const trip of routeTrips) {
-        const orderedStops = (stopTimesByTrip.get(trip.trip_id) ?? [])
-          .slice()
-          .sort((left, right) => Number(left.stop_sequence) - Number(right.stop_sequence))
-          .map((stopTime) => stopTime.stop_id)
+        const orderedStops = (stopTimesByTrip.get(trip.trip_id) ?? []).map((stopTime) => stopTime.stop_id)
 
         if (orderedStops.length > representativeStopIds.length) {
           representativeTrip = trip

@@ -25,7 +25,7 @@ Then open the app and upload an official MOT GTFS `.zip` archive.
 
 ## GitHub Pages
 
-The app is configured for repository Pages deployment at the `/Schematic-Map-israil/` base path.
+The app is configured for repository Pages deployment, and the Vite `base` value in `vite.config.ts` should match the repository name used for GitHub Pages hosting.
 
 Deployment workflow:
 - `.github/workflows/deploy-pages.yml`
