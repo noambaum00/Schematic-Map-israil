@@ -161,7 +161,9 @@ function CanvasInner({
                   <p className="text-sm text-slate-600">{loadError}</p>
                 </div>
               ) : (
-                <p className="mt-4 text-sm text-slate-600">{isLoading ? activeText.parsingGtfs : emptyStates[activeLanguage]}</p>
+                <p aria-live="polite" className="mt-4 text-sm text-slate-600" role="status">
+                  {isLoading ? activeText.parsingGtfs : emptyStates[activeLanguage]}
+                </p>
               )
             ) : (
               <div className="mt-4 grid gap-2">

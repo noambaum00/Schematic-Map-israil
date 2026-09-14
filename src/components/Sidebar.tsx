@@ -241,7 +241,7 @@ export function Sidebar({
           <ActionButton icon={<PinIcon />} label={text.addPoi} onClick={onAddPoi} />
           <ActionButton disabled={isExporting} icon={<ExportIcon />} label={isExporting ? text.exportingSvg : text.exportSvg} onClick={onExportSvg} />
           <div className="sm:col-span-2">
-            <ActionButton disabled={isSharing} icon={<ShareIcon />} label={text.shareMap} onClick={onShareMap} />
+            <ActionButton disabled={isSharing} icon={<ShareIcon />} label={isSharing ? text.sharingMap : text.shareMap} onClick={onShareMap} />
           </div>
         </div>
         {exportError ? <p className="text-sm text-red-600">{exportError}</p> : null}

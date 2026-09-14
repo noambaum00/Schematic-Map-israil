@@ -48,7 +48,7 @@ export function Legend({ activeLanguage, route }: LegendProps) {
                 />
                 <span className="text-sm text-slate-700">{text.frequencyTierLabels[tier]}</span>
               </div>
-              {isActive ? <span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> : null}
+              {isActive ? <span className="text-xs font-medium text-blue-700">{text.activeLegendBadge}</span> : null}
             </div>
           )
         })}
