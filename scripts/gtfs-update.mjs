@@ -3,9 +3,11 @@
 import AdmZip from 'adm-zip'
 import axios from 'axios'
 import Papa from 'papaparse'
+import { createReadStream } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { createInterface } from 'node:readline'
 import { pathToFileURL } from 'node:url'
 
 const GTFS_SOURCE_URL = process.env.GTFS_SOURCE_URL ?? 'https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip'
@@ -553,6 +555,89 @@ function parseCsv(content, fileName, delimiter = getCsvDelimiter(content, fileNa
   return parsed.data
 }
 
+function parseCsvRow(line, delimiter) {
+  const row = []
+  let currentValue = ''
+  let isInQuotes = false
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index]
+    const nextCharacter = line[index + 1]
+
+    if (character === '"') {
+      if (isInQuotes && nextCharacter === '"') {
+        currentValue += '"'
+        index += 1
+        continue
+      }
+
+      isInQuotes = !isInQuotes
+      continue
+    }
+
+    if (character === delimiter && !isInQuotes) {
+      row.push(currentValue.trim())
+      currentValue = ''
+      continue
+    }
+
+    currentValue += character
+  }
+
+  row.push(currentValue.trim())
+  return row
+}
+
+async function parseStopTimesStream(filePath) {
+  const stream = createReadStream(filePath, { encoding: 'utf8' })
+  const lineReader = createInterface({
+    crlfDelay: Infinity,
+    input: stream,
+  })
+  const stopTimes = []
+  let delimiter = ','
+  let tripIdColumnIndex = -1
+  let stopIdColumnIndex = -1
+  let stopSequenceColumnIndex = -1
+
+  for await (const rawLine of lineReader) {
+    const line = stripLeadingBom(rawLine).replaceAll('\u0000', '')
+
+    if (!line.trim()) {
+      continue
+    }
+
+    if (tripIdColumnIndex < 0) {
+      const commaColumns = parseCsvRow(line, ',')
+      const semicolonColumns = parseCsvRow(line, ';')
+      const headerColumns = matchesExpectedHeaders('stop_times.txt', semicolonColumns) ? semicolonColumns : commaColumns
+      delimiter = headerColumns === semicolonColumns ? ';' : ','
+
+      if (!matchesExpectedHeaders('stop_times.txt', headerColumns)) {
+        throw new Error('Failed to parse stop_times.txt: missing expected GTFS headers.')
+      }
+
+      tripIdColumnIndex = headerColumns.indexOf('trip_id')
+      stopIdColumnIndex = headerColumns.indexOf('stop_id')
+      stopSequenceColumnIndex = headerColumns.indexOf('stop_sequence')
+      continue
+    }
+
+    const columns = parseCsvRow(line, delimiter)
+    stopTimes.push({
+      stop_id: columns[stopIdColumnIndex] ?? '',
+      stop_sequence: columns[stopSequenceColumnIndex] ?? '',
+      trip_id: columns[tripIdColumnIndex] ?? '',
+    })
+  }
+
+  if (tripIdColumnIndex < 0) {
+    throw new Error('Failed to parse stop_times.txt: file is empty or missing a header row.')
+  }
+
+  return stopTimes
+}
+
 function findZipEntry(zip, fileName) {
   return zip.getEntries().find((entry) => entry.entryName.endsWith(`/${fileName}`) || entry.entryName === fileName)
 }
@@ -796,6 +881,10 @@ async function parseExtractedFile(extractedFiles, fileName, { required = true } 
   }
 
   let content
+
+  if (fileName === 'stop_times.txt') {
+    return parseStopTimesStream(filePath)
+  }
 
   try {
     content = decodeGtfsText(await readFile(filePath), fileName)

@@ -50,6 +50,21 @@ test('falls back to windows decoding for non-UTF8 bytes in GTFS rows', () => {
   assert.deepEqual(parseCsv(decoded, 'stop_times.txt'), [{ trip_id: 'T1', stop_id: 'S1', stop_sequence: '1\x81' }])
 })
 
+test('streams stop_times parsing and keeps required fields', async () => {
+  const tempDirectory = await mkdtemp(join(tmpdir(), 'gtfs-update-test-'))
+
+  try {
+    const stopTimesPath = join(tempDirectory, 'stop_times.txt')
+    await writeFile(stopTimesPath, 'trip_id;arrival_time;departure_time;stop_id;stop_sequence\nT1;08:00:00;08:00:00;S1;1\n')
+
+    const parsedStopTimes = await parseExtractedFile(new Map([['stop_times.txt', stopTimesPath]]), 'stop_times.txt')
+
+    assert.deepEqual(parsedStopTimes, [{ trip_id: 'T1', stop_id: 'S1', stop_sequence: '1' }])
+  } finally {
+    await rm(tempDirectory, { force: true, recursive: true })
+  }
+})
+
 test('skips optional files only when decoding fails', async () => {
   const tempDirectory = await mkdtemp(join(tmpdir(), 'gtfs-update-test-'))
 
