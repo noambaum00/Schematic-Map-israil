@@ -1,6 +1,6 @@
 import { addEdge, Position, type Connection, type Edge, type Node } from '@xyflow/react'
 
-import type { ParsedRoute } from './gtfs'
+import type { ParsedRoute, TransitLanguage } from './gtfs'
 import type { POINodeData } from '../components/nodes/POINode'
 import type { TransitStopNodeData } from '../components/nodes/TransitStopNode'
 
@@ -9,10 +9,24 @@ export type POICanvasNode = Node<POINodeData, 'poi'>
 export type CanvasNode = TransitCanvasNode | POICanvasNode
 export type CanvasEdge = Edge
 
-export function buildTransitGraph(route: ParsedRoute | null): { edges: CanvasEdge[]; nodes: CanvasNode[] } {
+function getDirection(activeLanguage: TransitLanguage): 'ltr' | 'rtl' {
+  return activeLanguage === 'English' ? 'ltr' : 'rtl'
+}
+
+function getAlignment(activeLanguage: TransitLanguage): 'left' | 'right' {
+  return activeLanguage === 'English' ? 'left' : 'right'
+}
+
+export function buildTransitGraph(
+  route: ParsedRoute | null,
+  activeLanguage: TransitLanguage,
+): { edges: CanvasEdge[]; nodes: CanvasNode[] } {
   if (!route) {
     return { edges: [], nodes: [] }
   }
+
+  const direction = getDirection(activeLanguage)
+  const textAlign = getAlignment(activeLanguage)
 
   const nodes = route.stops.map<TransitCanvasNode>((stop, index) => {
     const perRow = 5
@@ -24,9 +38,11 @@ export function buildTransitGraph(route: ParsedRoute | null): { edges: CanvasEdg
     return {
       data: {
         code: stop.code,
+        direction,
         isAccessible: stop.wheelchairBoarding === '1',
         label: stop.name,
         operatorColor: route.operatorColor,
+        textAlign,
       },
       draggable: true,
       id: stop.id,

@@ -104,7 +104,6 @@ function CanvasInner({
               attributionPosition="bottom-left"
               connectionMode={ConnectionMode.Loose}
               defaultEdgeOptions={{ style: { stroke: '#94a3b8', strokeWidth: 3 }, type: 'smoothstep' }}
-              deleteKeyCode={null}
               edges={edges}
               nodeTypes={nodeTypes}
               nodes={nodes}

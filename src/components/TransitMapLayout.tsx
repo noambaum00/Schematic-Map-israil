@@ -17,6 +17,14 @@ import { Sidebar } from './Sidebar'
 
 const defaultLanguage: TransitLanguage = 'English'
 
+function getDirection(activeLanguage: TransitLanguage): 'ltr' | 'rtl' {
+  return activeLanguage === 'English' ? 'ltr' : 'rtl'
+}
+
+function getAlignment(activeLanguage: TransitLanguage): 'left' | 'right' {
+  return activeLanguage === 'English' ? 'left' : 'right'
+}
+
 export function TransitMapLayout() {
   const [query, setQuery] = useState('')
   const [language, setLanguage] = useState<TransitLanguage>(defaultLanguage)
@@ -64,16 +72,26 @@ export function TransitMapLayout() {
     [allRoutes, selectedRouteId],
   )
 
-  const baseGraph = useMemo(() => buildTransitGraph(selectedRoute), [selectedRoute])
+  const baseGraph = useMemo(() => buildTransitGraph(selectedRoute, language), [language, selectedRoute])
 
   const nodes = useMemo<CanvasNode[]>(() => {
+    const poiDirection = getDirection(language)
+    const poiTextAlign = getAlignment(language)
     const transitNodes = baseGraph.nodes.map((node) => ({
       ...node,
       position: transitNodePositions[node.id] ?? node.position,
     }))
+    const localizedPoiNodes = poiNodes.map((node) => ({
+      ...node,
+      data: {
+        ...node.data,
+        direction: poiDirection,
+        textAlign: poiTextAlign,
+      },
+    }))
 
-    return [...transitNodes, ...poiNodes]
-  }, [baseGraph.nodes, poiNodes, transitNodePositions])
+    return [...transitNodes, ...localizedPoiNodes]
+  }, [baseGraph.nodes, language, poiNodes, transitNodePositions])
 
   const edges = useMemo<CanvasEdge[]>(() => [...baseGraph.edges, ...manualEdges], [baseGraph.edges, manualEdges])
 
@@ -174,7 +192,11 @@ export function TransitMapLayout() {
     setPoiNodes((currentNodes) => [
       ...currentNodes,
       {
-        data: { label: `Point of Interest ${poiIndex}` },
+        data: {
+          direction: getDirection(language),
+          label: `Point of Interest ${poiIndex}`,
+          textAlign: getAlignment(language),
+        },
         id: poiId,
         position,
         type: 'poi',
