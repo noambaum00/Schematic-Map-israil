@@ -575,8 +575,19 @@ async function parseStopTimesInMemory(filePath) {
   return parseCsv(content, 'stop_times.txt', delimiter).map((row) => projectStopTimeRow(row))
 }
 
-async function parseStopTimesStream(filePath) {
-  const stopTimes = []
+async function forEachStopTimeRow(filePath, onRow) {
+  const fileStats = await stat(filePath)
+
+  if (fileStats.size <= getStopTimesStreamThresholdBytes()) {
+    const stopTimes = await parseStopTimesInMemory(filePath)
+
+    for (const stopTime of stopTimes) {
+      onRow(stopTime)
+    }
+
+    return
+  }
+
   const stream = createReadStream(filePath, { encoding: 'utf8' })
   const csvStream = Papa.parse(Papa.NODE_STREAM_INPUT, {
     delimiter: '',
@@ -600,31 +611,81 @@ async function parseStopTimesStream(filePath) {
         headersValidated = true
       }
 
-      stopTimes.push(projectStopTimeRow(row))
+      onRow(projectStopTimeRow(row))
     })
 
     csvStream.on('error', (error) => reject(new Error(`Failed to parse stop_times.txt: ${error.message}`)))
-    csvStream.on('finish', () => {
-      if (!headersValidated && stopTimes.length === 0) {
-        resolve([])
-        return
-      }
-
-      resolve(stopTimes)
-    })
+    csvStream.on('finish', () => resolve())
 
     stream.pipe(csvStream)
   })
 }
 
 async function parseStopTimesFile(filePath) {
-  const fileStats = await stat(filePath)
+  const stopTimes = []
+  await forEachStopTimeRow(filePath, (stopTime) => {
+    stopTimes.push(stopTime)
+  })
+  return stopTimes
+}
 
-  if (fileStats.size <= getStopTimesStreamThresholdBytes()) {
-    return parseStopTimesInMemory(filePath)
+async function buildRepresentativeTripsFromStopTimes(filePath, tripToRouteMap) {
+  const representativeTrips = new Map()
+  let currentTripId = null
+  let currentRouteId = null
+  let currentStops = []
+
+  const flushCurrentTrip = () => {
+    if (!currentTripId || !currentRouteId || currentStops.length < 2) {
+      currentTripId = null
+      currentRouteId = null
+      currentStops = []
+      return
+    }
+
+    const orderedStops = [...currentStops]
+      .sort((left, right) => left.stop_sequence - right.stop_sequence)
+      .map((stop) => stop.stop_id)
+      .filter(Boolean)
+    const existingRepresentative = representativeTrips.get(currentRouteId)
+
+    if (!existingRepresentative || orderedStops.length > existingRepresentative.stopIds.length) {
+      representativeTrips.set(currentRouteId, {
+        stopIds: orderedStops,
+        tripId: currentTripId,
+      })
+    }
+
+    currentTripId = null
+    currentRouteId = null
+    currentStops = []
   }
 
-  return parseStopTimesStream(filePath)
+  await forEachStopTimeRow(filePath, (stopTime) => {
+    const routeId = tripToRouteMap.get(stopTime.trip_id)
+
+    if (!routeId) {
+      return
+    }
+
+    if (currentTripId && stopTime.trip_id !== currentTripId) {
+      flushCurrentTrip()
+    }
+
+    if (!currentTripId) {
+      currentTripId = stopTime.trip_id
+      currentRouteId = routeId
+      currentStops = []
+    }
+
+    currentStops.push({
+      stop_id: stopTime.stop_id,
+      stop_sequence: Number(stopTime.stop_sequence ?? 0),
+    })
+  })
+
+  flushCurrentTrip()
+  return representativeTrips
 }
 
 function findZipEntry(zip, fileName) {
@@ -883,14 +944,14 @@ async function buildTransitGraphPayload(extractedFiles) {
   const agencies = (await parseExtractedFile(extractedFiles, 'agency.txt', { required: false })) ?? []
   const routes = (await parseExtractedFile(extractedFiles, 'routes.txt')) ?? []
   const trips = (await parseExtractedFile(extractedFiles, 'trips.txt')) ?? []
-  const stopTimes = (await parseExtractedFile(extractedFiles, 'stop_times.txt')) ?? []
   const stops = (await parseExtractedFile(extractedFiles, 'stops.txt')) ?? []
   const translations = (await parseExtractedFile(extractedFiles, 'translations.txt', { required: false })) ?? []
   const translationMap = buildTranslationMap(translations)
 
   const agencyMap = new Map()
+  const tripsById = new Map()
   const tripsByRoute = new Map()
-  const stopTimesByTrip = new Map()
+  const tripToRouteMap = new Map()
   const clusteredStops = clusterStopsIntoTransferHubs(stops.map((stop) => buildClusterableStop(stop, translationMap)))
   const clusteredStopMap = new Map(clusteredStops.hubNodes.map((stop) => [stop.id, stop]))
   const singleAgency = agencies.length === 1 ? agencies[0] : null
@@ -905,20 +966,20 @@ async function buildTransitGraphPayload(extractedFiles) {
       continue
     }
 
+    tripsById.set(trip.trip_id, trip)
+    tripToRouteMap.set(trip.trip_id, trip.route_id)
     const routeTrips = tripsByRoute.get(trip.route_id) ?? []
     routeTrips.push(trip)
     tripsByRoute.set(trip.route_id, routeTrips)
   }
 
-  for (const stopTime of stopTimes) {
-    if (!stopTime.trip_id || !stopTime.stop_id) {
-      continue
-    }
+  const stopTimesPath = extractedFiles.get('stop_times.txt')
 
-    const tripStops = stopTimesByTrip.get(stopTime.trip_id) ?? []
-    tripStops.push(stopTime)
-    stopTimesByTrip.set(stopTime.trip_id, tripStops)
+  if (!stopTimesPath) {
+    throw new Error('Missing stop_times.txt in the extracted GTFS archive.')
   }
+
+  const representativeTripsByRoute = await buildRepresentativeTripsFromStopTimes(stopTimesPath, tripToRouteMap)
 
   const parsedRoutes = routes
     .map((route) => {
@@ -933,19 +994,9 @@ async function buildTransitGraphPayload(extractedFiles) {
         route.route_desc ??
         'Unknown operator'
 
-      let representativeTrip = null
-      let representativeStopIds = []
-
-      for (const trip of routeTrips) {
-        const orderedStops = [...(stopTimesByTrip.get(trip.trip_id) ?? [])]
-          .sort((left, right) => Number(left.stop_sequence ?? 0) - Number(right.stop_sequence ?? 0))
-          .map((stopTime) => stopTime.stop_id)
-
-        if (orderedStops.length > representativeStopIds.length) {
-          representativeTrip = trip
-          representativeStopIds = orderedStops
-        }
-      }
+      const representative = representativeTripsByRoute.get(route.route_id)
+      const representativeTrip = representative ? tripsById.get(representative.tripId) ?? null : null
+      const representativeStopIds = representative?.stopIds ?? []
 
       if (!representativeTrip || representativeStopIds.length < 2) {
         return null
