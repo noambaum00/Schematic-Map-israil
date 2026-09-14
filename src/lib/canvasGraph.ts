@@ -38,7 +38,9 @@ export function buildTransitGraph(
     return {
       data: {
         code: stop.code,
+        constituentStopCount: stop.constituent_stop_ids.length,
         direction,
+        isTransferHub: stop.isTransferHub,
         wheelchairStatus: stop.wheelchairStatus,
         label: stop.name,
         operatorColor: route.operatorColor,

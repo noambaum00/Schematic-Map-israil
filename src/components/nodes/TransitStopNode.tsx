@@ -4,7 +4,9 @@ import type { TransitCanvasNode } from '../../lib/canvasGraph'
 
 export type TransitStopNodeData = {
   code: string
+  constituentStopCount: number
   direction: 'ltr' | 'rtl'
+  isTransferHub: boolean
   wheelchairStatus: 'accessible' | 'inaccessible' | 'unknown'
   label: string
   operatorColor: string
@@ -18,7 +20,7 @@ export function TransitStopNode({ data, selected }: NodeProps<TransitCanvasNode>
         selected
           ? 'border-cyan-300 bg-slate-900 text-white'
           : 'border-white/10 bg-slate-950/90 text-slate-100'
-      }`}
+      } ${data.isTransferHub ? 'ring-2 ring-cyan-400/40' : ''}`}
       dir={data.direction}
       style={{ textAlign: data.textAlign }}
     >
@@ -30,7 +32,9 @@ export function TransitStopNode({ data, selected }: NodeProps<TransitCanvasNode>
         <span className="mt-1 h-3.5 w-3.5 rounded-full border border-white/20" style={{ backgroundColor: data.operatorColor }} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{data.label}</p>
-          <p className="mt-1 text-xs text-slate-400">{data.code || 'GTFS station'}</p>
+          <p className="mt-1 text-xs text-slate-400">
+            {data.isTransferHub ? `Transfer hub · ${data.constituentStopCount} stops` : data.code || 'GTFS station'}
+          </p>
           {data.wheelchairStatus === 'accessible' ? <p className="mt-1 text-xs text-emerald-300">Wheelchair accessible</p> : null}
           {data.wheelchairStatus === 'inaccessible' ? <p className="mt-1 text-xs text-rose-300">Wheelchair inaccessible</p> : null}
         </div>

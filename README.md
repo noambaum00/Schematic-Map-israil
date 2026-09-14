@@ -2,14 +2,16 @@
 
 A Vite + React + TypeScript app for generating schematic transit views for Israel's public transportation network.
 
-## Phase 3 status
+## Phase 4 status
 
-This phase upgrades the live GTFS route view into an interactive React Flow canvas.
+This phase adds complex transfer-hub clustering to the GTFS preprocessing pipeline and exposes merged hub nodes to the interactive React Flow canvas.
 
 ### Implemented now
 - upload and parse a real Israel MOT GTFS zip archive in the browser
 - derive live route summaries from `agency.txt`, `routes.txt`, `trips.txt`, `stop_times.txt`, and `stops.txt`
-- render the selected route as a React Flow graph with draggable transit station nodes
+- preprocess GTFS stops into transfer hubs using parent_station hierarchy first and geospatial proximity second
+- remap route stop sequences through a stop-to-hub dictionary before generating graph edges
+- render the selected route as a React Flow graph with draggable transit station and transfer-hub nodes
 - display Israel Railways train-series labels like `2XX` and `4XX` directly on route edges
 - add Point of Interest (POI) nodes at the center of the visible canvas
 - edit the selected POI label from the sidebar
@@ -19,8 +21,9 @@ This phase upgrades the live GTFS route view into an interactive React Flow canv
 
 ## New npm dependencies
 
-- `@xyflow/react`
-- `html-to-image`
+- no new packages are required for hub clustering
+- optional future alternative: `@turf/distance` or `geolib` if you prefer external geospatial helpers
+- existing canvas/export packages remain `@xyflow/react` and `html-to-image`
 
 ## How to use
 
@@ -47,14 +50,14 @@ Repository settings required:
 
 ## Current GTFS parsing scope
 
-The current parser reads:
+The current parser reads and preprocesses:
 - `agency.txt` (optional)
 - `routes.txt`
 - `trips.txt`
 - `stop_times.txt`
 - `stops.txt`
 
-It uses the longest available trip pattern per route as the initial graph source, and preserves wheelchair status as accessible, inaccessible, or unknown.
+It uses the longest available trip pattern per route as the initial graph source, preserves wheelchair status as accessible, inaccessible, or unknown, and merges clustered stops into centroid-based transfer hubs with `constituent_stop_ids` metadata.
 
 ## Export behavior
 

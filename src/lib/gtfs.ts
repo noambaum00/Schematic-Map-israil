@@ -3,6 +3,7 @@ import Papa from 'papaparse'
 import { z } from 'zod'
 
 import { getOperatorColor } from '../data/transitPlan'
+import { clusterStopsIntoTransferHubs, remapEdgesToHubs, type RawStopForHubClustering } from './gtfsPreprocessor'
 
 const agencySchema = z.object({
   agency_id: z.string().optional().default(''),
@@ -39,6 +40,8 @@ const stopSchema = z.object({
   stop_lon: z.string().optional().default('0'),
   stop_code: z.string().optional().default(''),
   wheelchair_boarding: z.string().optional().default('0'),
+  parent_station: z.string().optional().default(''),
+  location_type: z.string().optional().default('0'),
 })
 
 type AgencyRow = z.infer<typeof agencySchema>
@@ -59,6 +62,8 @@ export type ParsedStop = {
   latitude: number
   longitude: number
   wheelchairStatus: WheelchairStatus
+  isTransferHub: boolean
+  constituent_stop_ids: string[]
 }
 
 export type ParsedRoute = {
@@ -164,10 +169,6 @@ function extractTrainTemplates(route: RouteRow, trips: TripRow[]) {
   return [...candidates].sort()
 }
 
-function dedupeConsecutiveStops(stopIds: string[]) {
-  return stopIds.filter((stopId, index) => index === 0 || stopId !== stopIds[index - 1])
-}
-
 function parseWheelchairStatus(value: string): WheelchairStatus {
   if (value === '1') {
     return 'accessible'
@@ -178,6 +179,19 @@ function parseWheelchairStatus(value: string): WheelchairStatus {
   }
 
   return 'unknown'
+}
+
+function buildClusterableStop(stop: StopRow): RawStopForHubClustering {
+  return {
+    location_type: stop.location_type,
+    parent_station: stop.parent_station,
+    stop_code: stop.stop_code,
+    stop_id: stop.stop_id,
+    stop_lat: Number(stop.stop_lat),
+    stop_lon: Number(stop.stop_lon),
+    stop_name: stop.stop_name,
+    wheelchairStatus: parseWheelchairStatus(stop.wheelchair_boarding),
+  }
 }
 
 export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
@@ -212,17 +226,14 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
   const stops = parseCsv(stopsText, stopSchema, 'stops.txt').data
 
   const agencyMap = new Map<string, AgencyRow>()
-  const stopMap = new Map<string, StopRow>()
   const tripsByRoute = new Map<string, TripRow[]>()
   const stopTimesByTrip = new Map<string, StopTimeRow[]>()
+  const clusteredStops = clusterStopsIntoTransferHubs(stops.map(buildClusterableStop))
+  const clusteredStopMap = new Map(clusteredStops.hubNodes.map((stop) => [stop.id, stop]))
   const singleAgency = agencies.length === 1 ? agencies[0] : null
 
   for (const agency of agencies) {
     agencyMap.set(agency.agency_id || agency.agency_name, agency)
-  }
-
-  for (const stop of stops) {
-    stopMap.set(stop.stop_id, stop)
   }
 
   for (const trip of trips) {
@@ -266,16 +277,29 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
       }
 
       const trainTemplates = getMode(route.route_type) === 'rail' ? extractTrainTemplates(route, routeTrips) : []
-      const uniqueStops = dedupeConsecutiveStops(representativeStopIds)
-        .map((stopId) => stopMap.get(stopId))
-        .filter((stop): stop is StopRow => Boolean(stop))
+      const remappedEdges = remapEdgesToHubs(
+        representativeStopIds.slice(1).map((stopId, index) => ({
+          id: `${representativeTrip!.trip_id}-edge-${index}`,
+          source: representativeStopIds[index]!,
+          target: stopId,
+        })),
+        clusteredStops.stopToHubMap,
+      )
+
+      const remappedStopIds = remappedEdges.length > 0 ? [remappedEdges[0]!.source, ...remappedEdges.map((edge) => edge.target)] : []
+      const uniqueStops = remappedStopIds
+        .filter((stopId, index) => index === 0 || stopId !== remappedStopIds[index - 1])
+        .map((stopId) => clusteredStopMap.get(stopId))
+        .filter((stop): stop is NonNullable<typeof stop> => Boolean(stop))
         .map((stop) => ({
-          id: stop.stop_id,
-          name: stop.stop_name,
-          code: stop.stop_code,
-          latitude: Number(stop.stop_lat),
-          longitude: Number(stop.stop_lon),
-          wheelchairStatus: parseWheelchairStatus(stop.wheelchair_boarding),
+          code: stop.code,
+          constituent_stop_ids: stop.constituent_stop_ids,
+          id: stop.id,
+          isTransferHub: stop.isTransferHub,
+          latitude: stop.latitude,
+          longitude: stop.longitude,
+          name: stop.name,
+          wheelchairStatus: stop.wheelchairStatus,
         }))
 
       if (uniqueStops.length < 2) {
@@ -289,11 +313,11 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
         mode: getMode(route.route_type),
         operator,
         operatorColor: getOperatorColor(operator),
-        trainTemplates,
-        trainTemplateLabel: trainTemplates.length > 0 ? trainTemplates.join(' / ') : null,
-        representativeTripId: representativeTrip.trip_id,
         representativeHeadsign: representativeTrip.trip_headsign,
+        representativeTripId: representativeTrip.trip_id,
         stops: uniqueStops,
+        trainTemplateLabel: trainTemplates.length > 0 ? trainTemplates.join(' / ') : null,
+        trainTemplates,
       } satisfies ParsedRoute
     })
     .filter((route): route is ParsedRoute => Boolean(route))
@@ -303,7 +327,7 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
     fileName: file.name,
     agencies: agencies.length,
     routes: parsedRoutes,
-    stops: stops.length,
+    stops: clusteredStops.hubNodes.length,
     trips: trips.length,
   }
 }
