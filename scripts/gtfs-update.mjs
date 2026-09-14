@@ -24,8 +24,8 @@ const textDecoderSpecs = [
   { encoding: 'utf-8', options: { fatal: true } },
   { encoding: 'utf-16le', options: { fatal: true } },
   { encoding: 'utf-16be', options: { fatal: true } },
-  { encoding: 'windows-1255', options: { fatal: true } },
-  { encoding: 'windows-1252', options: { fatal: true } },
+  { encoding: 'windows-1255', options: { fatal: false } },
+  { encoding: 'windows-1252', options: { fatal: false } },
 ]
 const utf32EncodingSpecs = ['utf-32le', 'utf-32be']
 

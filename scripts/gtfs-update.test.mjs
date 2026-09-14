@@ -38,6 +38,18 @@ test('removes embedded NUL characters when headers are valid', () => {
   assert.deepEqual(parseCsv(decoded, 'stop_times.txt'), [{ trip_id: 'T1', stop_id: 'S1', stop_sequence: '1' }])
 })
 
+test('falls back to windows decoding for non-UTF8 bytes in GTFS rows', () => {
+  const bytes = Buffer.from([
+    ...Buffer.from('trip_id,stop_id,stop_sequence\nT1,S1,1', 'utf8'),
+    0x81,
+    0x0a,
+  ])
+
+  const decoded = decodeGtfsText(bytes, 'stop_times.txt')
+
+  assert.deepEqual(parseCsv(decoded, 'stop_times.txt'), [{ trip_id: 'T1', stop_id: 'S1', stop_sequence: '1\x81' }])
+})
+
 test('skips optional files only when decoding fails', async () => {
   const tempDirectory = await mkdtemp(join(tmpdir(), 'gtfs-update-test-'))
 
