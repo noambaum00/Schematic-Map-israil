@@ -139,7 +139,12 @@ export function buildTransitGraph(
   return { edges, nodes }
 }
 
-export function connectCanvasEdge(connection: Connection, currentEdges: CanvasEdge[], nodes: CanvasNode[]) {
+export function connectCanvasEdge(
+  connection: Connection,
+  currentEdges: CanvasEdge[],
+  nodes: CanvasNode[],
+  routingStyle: EdgeRoutingStyle,
+) {
   const sourceNode = nodes.find((node) => node.id === connection.source)
   const targetNode = nodes.find((node) => node.id === connection.target)
 
@@ -177,7 +182,7 @@ export function connectCanvasEdge(connection: Connection, currentEdges: CanvasEd
       },
       id: `manual-edge-${source}-${target}-${currentEdges.length + 1}`,
       style: { stroke: '#f8fafc', strokeDasharray: '10 6', strokeWidth: 3 },
-      type: 'schematic',
+      type: routingStyle,
     },
     currentEdges,
   )

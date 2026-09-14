@@ -220,8 +220,12 @@ export function TransitMapLayout() {
           .map((node) => Number(node.id.replace('poi-', '')))
           .filter((value) => Number.isFinite(value))
         const highestPoiIndex = restoredPoiIdNumbers.length > 0 ? Math.max(...restoredPoiIdNumbers) : 0
+        const routeStopIds = new Set(selectedRoute?.stops.map((stop) => stop.id) ?? [])
+        const restoredTransitNodePositions = Object.fromEntries(
+          Object.entries(sharedState.nodePositions).filter(([nodeId]) => routeStopIds.has(nodeId)),
+        )
 
-        setTransitNodePositions(sharedState.nodePositions)
+        setTransitNodePositions(restoredTransitNodePositions)
         setRouteEdgeCustomizations(restoredEdgeCustomizations)
         setGlobalEdgeStyle(sharedState.globalEdgeStyle)
         setPoiNodes(restoredPoiNodes)
@@ -323,8 +327,8 @@ export function TransitMapLayout() {
       })
       const shareUrl = buildShareableMapUrl(shareState)
 
-      window.history.replaceState(null, '', shareUrl)
       await navigator.clipboard.writeText(shareUrl)
+      window.history.replaceState(null, '', shareUrl)
       setShareMessage(text.shareCopied)
     } catch {
       setShareError(text.shareCopyFailed)
@@ -348,7 +352,7 @@ export function TransitMapLayout() {
   }
 
   function handleConnect(connection: Connection) {
-    setManualEdges((currentEdges) => connectCanvasEdge(connection, currentEdges, nodesRef.current))
+    setManualEdges((currentEdges) => connectCanvasEdge(connection, currentEdges, nodesRef.current, globalEdgeStyle))
   }
 
   function handleSelectionChange({ edges: selectedEdges, nodes: selectedNodes }: OnSelectionChangeParams<CanvasNode, CanvasEdge>) {
