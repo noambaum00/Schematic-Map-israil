@@ -5,7 +5,7 @@ import {
   type ReactFlowInstance,
   type XYPosition,
 } from '@xyflow/react'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { CanvasEdge, CanvasNode, POICanvasNode } from '../lib/canvasGraph'
 import { buildTransitGraph, connectCanvasEdge } from '../lib/canvasGraph'
@@ -100,6 +100,17 @@ export function TransitMapLayout() {
     return selectedNode?.type === 'poi' ? selectedNode.data.label : ''
   }, [nodes, selectedNodeId])
 
+  useEffect(() => {
+    if (!reactFlowInstance || baseGraph.nodes.length === 0) {
+      return
+    }
+
+    void (async () => {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      await reactFlowInstance.fitView({ duration: 250, includeHiddenNodes: true, padding: 0.18 })
+    })()
+  }, [baseGraph.nodes.length, reactFlowInstance, selectedRouteId])
+
   function resetCanvasState() {
     setPoiNodes([])
     setManualEdges([])
@@ -166,7 +177,7 @@ export function TransitMapLayout() {
   }
 
   function handleConnect(connection: Connection) {
-    setManualEdges((currentEdges) => connectCanvasEdge(connection, currentEdges))
+    setManualEdges((currentEdges) => connectCanvasEdge(connection, currentEdges, nodes))
   }
 
   function handleSelectionChange({ nodes: selectedNodes }: OnSelectionChangeParams<CanvasNode, CanvasEdge>) {

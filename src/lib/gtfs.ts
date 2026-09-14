@@ -50,13 +50,15 @@ type StopRow = z.infer<typeof stopSchema>
 export type TransitMode = 'rail' | 'light-rail' | 'bus'
 export type TransitLanguage = 'English' | 'עברית' | 'العربية'
 
+export type WheelchairStatus = 'accessible' | 'inaccessible' | 'unknown'
+
 export type ParsedStop = {
   id: string
   name: string
   code: string
   latitude: number
   longitude: number
-  wheelchairBoarding: string
+  wheelchairStatus: WheelchairStatus
 }
 
 export type ParsedRoute = {
@@ -166,6 +168,18 @@ function dedupeConsecutiveStops(stopIds: string[]) {
   return stopIds.filter((stopId, index) => index === 0 || stopId !== stopIds[index - 1])
 }
 
+function parseWheelchairStatus(value: string): WheelchairStatus {
+  if (value === '1') {
+    return 'accessible'
+  }
+
+  if (value === '2') {
+    return 'inaccessible'
+  }
+
+  return 'unknown'
+}
+
 export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
   const zip = await JSZip.loadAsync(await file.arrayBuffer())
 
@@ -261,7 +275,7 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
           code: stop.stop_code,
           latitude: Number(stop.stop_lat),
           longitude: Number(stop.stop_lon),
-          wheelchairBoarding: stop.wheelchair_boarding,
+          wheelchairStatus: parseWheelchairStatus(stop.wheelchair_boarding),
         }))
 
       if (uniqueStops.length < 2) {

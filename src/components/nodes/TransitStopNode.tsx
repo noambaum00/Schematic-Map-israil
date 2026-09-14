@@ -5,7 +5,7 @@ import type { TransitCanvasNode } from '../../lib/canvasGraph'
 export type TransitStopNodeData = {
   code: string
   direction: 'ltr' | 'rtl'
-  isAccessible: boolean
+  wheelchairStatus: 'accessible' | 'inaccessible' | 'unknown'
   label: string
   operatorColor: string
   textAlign: 'left' | 'right'
@@ -31,7 +31,8 @@ export function TransitStopNode({ data, selected }: NodeProps<TransitCanvasNode>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{data.label}</p>
           <p className="mt-1 text-xs text-slate-400">{data.code || 'GTFS station'}</p>
-          {data.isAccessible ? <p className="mt-1 text-xs text-emerald-300">Wheelchair accessible</p> : null}
+          {data.wheelchairStatus === 'accessible' ? <p className="mt-1 text-xs text-emerald-300">Wheelchair accessible</p> : null}
+          {data.wheelchairStatus === 'inaccessible' ? <p className="mt-1 text-xs text-rose-300">Wheelchair inaccessible</p> : null}
         </div>
       </div>
     </div>

@@ -54,7 +54,7 @@ The current parser reads:
 - `stop_times.txt`
 - `stops.txt`
 
-It uses the longest available trip pattern per route as the initial graph source.
+It uses the longest available trip pattern per route as the initial graph source, and preserves wheelchair status as accessible, inaccessible, or unknown.
 
 ## Export behavior
 

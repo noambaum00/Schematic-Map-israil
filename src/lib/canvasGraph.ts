@@ -39,7 +39,7 @@ export function buildTransitGraph(
       data: {
         code: stop.code,
         direction,
-        isAccessible: stop.wheelchairBoarding === '1',
+        wheelchairStatus: stop.wheelchairStatus,
         label: stop.name,
         operatorColor: route.operatorColor,
         textAlign,
@@ -73,7 +73,20 @@ export function buildTransitGraph(
   return { edges, nodes }
 }
 
-export function connectCanvasEdge(connection: Connection, currentEdges: CanvasEdge[]) {
+export function connectCanvasEdge(connection: Connection, currentEdges: CanvasEdge[], nodes: CanvasNode[]) {
+  const sourceNode = nodes.find((node) => node.id === connection.source)
+  const targetNode = nodes.find((node) => node.id === connection.target)
+
+  if (!sourceNode || !targetNode || sourceNode.type === targetNode.type) {
+    return currentEdges
+  }
+
+  const connectsPoiAndTransit = [sourceNode.type, targetNode.type].sort().join(':') === 'poi:transit'
+
+  if (!connectsPoiAndTransit) {
+    return currentEdges
+  }
+
   return addEdge(
     {
       ...connection,

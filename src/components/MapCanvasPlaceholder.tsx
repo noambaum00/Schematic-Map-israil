@@ -109,7 +109,6 @@ function CanvasInner({
               Use the interactive graph to inspect GTFS station nodes, add POI nodes, draw manual connections, and export the full viewport as SVG.
             </p>
             <ReactFlow<CanvasNode, CanvasEdge>
-              fitView
               attributionPosition="bottom-left"
               connectionMode={ConnectionMode.Loose}
               defaultEdgeOptions={{ style: { stroke: '#94a3b8', strokeWidth: 3 }, type: 'smoothstep' }}
@@ -154,7 +153,8 @@ function CanvasInner({
                 <li>• Operator: {route.operator}</li>
                 <li>• Trip ID: {route.representativeTripId}</li>
                 <li>• Headsign: {route.representativeHeadsign || 'Not provided'}</li>
-                <li>• Wheelchair-ready stops: {route.stops.filter((stop) => stop.wheelchairBoarding === '1').length}</li>
+                <li>• Wheelchair-accessible stops: {route.stops.filter((stop) => stop.wheelchairStatus === 'accessible').length}</li>
+                <li>• Wheelchair-inaccessible stops: {route.stops.filter((stop) => stop.wheelchairStatus === 'inaccessible').length}</li>
               </ul>
             )}
           </article>
