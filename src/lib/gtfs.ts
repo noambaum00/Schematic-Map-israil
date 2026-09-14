@@ -281,8 +281,17 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
       const remappedStopIds = representativeStopIds
         .map((stopId) => clusteredStops.stopToHubMap[stopId] ?? stopId)
         .filter((stopId, index, allStopIds) => index === 0 || stopId !== allStopIds[index - 1])
+      const seenStopIds = new Set<string>()
+      const orderedUniqueStopIds = remappedStopIds.filter((stopId) => {
+        if (seenStopIds.has(stopId)) {
+          return false
+        }
 
-      const uniqueStops = remappedStopIds.map((stopId) => clusteredStopMap.get(stopId))
+        seenStopIds.add(stopId)
+        return true
+      })
+
+      const uniqueStops = orderedUniqueStopIds.map((stopId) => clusteredStopMap.get(stopId))
         .filter((stop): stop is NonNullable<typeof stop> => Boolean(stop))
         .map((stop) => ({
           code: stop.code,

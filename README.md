@@ -39,7 +39,7 @@ Then open the app, upload an official MOT GTFS `.zip` archive, drag stations and
 
 ## GitHub Pages publishing
 
-This project now includes a GitHub Pages deployment workflow, and production builds are coupled to the repository-specific Vite `base` value in `vite.config.ts`. The current production base is hard-coded to `/Schematic-Map-israil/`, so Pages deployment expects the exact repository slug `noambaum00/Schematic-Map-israil`; if the slug changes, update `vite.config.ts` before publishing. Local development does not require Pages setup.
+This project now includes a GitHub Pages deployment workflow, and production builds are coupled to the repository-specific Vite `base` value in `vite.config.ts`. The current production base is hard-coded to `/Schematic-Map-israil/`, so Pages deployment expects the exact repository slug `noambaum00/Schematic-Map-israil`; the app title uses “Israel”, but the repository slug intentionally remains `Schematic-Map-israil`. If the slug changes, update `vite.config.ts` before publishing. Local development does not require Pages setup.
 
 Configured deployment workflow:
 - `.github/workflows/deploy-pages.yml`
