@@ -12,6 +12,14 @@ const OUTPUT_FILE = process.env.GTFS_OUTPUT_FILE ?? join(process.cwd(), 'public'
 const REQUIRED_FILES = ['routes.txt', 'trips.txt', 'stop_times.txt', 'stops.txt']
 const OPTIONAL_FILES = ['agency.txt', 'translations.txt']
 const STRIPPED_NAME_PATTERNS = [/\bplatform\b/gi, /\bterminal\b/gi, /\bstation\b/gi, /\bstop\b/gi, /\bbay\b/gi, /מסוף/gi, /רציף/gi]
+const expectedGtfsHeaders = {
+  'agency.txt': ['agency_name'],
+  'routes.txt': ['route_id', 'route_type'],
+  'stop_times.txt': ['trip_id', 'stop_id', 'stop_sequence'],
+  'stops.txt': ['stop_id', 'stop_name', 'stop_lat', 'stop_lon'],
+  'translations.txt': ['translation'],
+  'trips.txt': ['route_id', 'trip_id'],
+}
 const textDecoderSpecs = [
   { encoding: 'utf-8', options: { fatal: true } },
   { encoding: 'utf-16le', options: { fatal: true } },
@@ -269,7 +277,14 @@ function isLikelyGtfsCsv(text, fileName) {
   }
 
   const columns = headerLine.split(delimiter).map((value) => value.trim()).filter(Boolean)
-  return columns.length >= 2
+  const expectedHeaders = expectedGtfsHeaders[fileName]
+
+  if (!expectedHeaders) {
+    return columns.length >= 2
+  }
+
+  const availableHeaders = new Set(columns)
+  return expectedHeaders.every((header) => availableHeaders.has(header))
 }
 
 function getPreferredTextDecoders(buffer) {
