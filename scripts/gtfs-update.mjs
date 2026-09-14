@@ -275,15 +275,28 @@ function getCsvDelimiter(text, fileName) {
   return ','
 }
 
+function parseCsvHeaderColumns(text, fileName) {
+  const parsed = Papa.parse(stripLeadingBom(text), {
+    delimiter: getCsvDelimiter(text, fileName),
+    preview: 1,
+    skipEmptyLines: true,
+  })
+
+  if (parsed.errors.length > 0) {
+    return []
+  }
+
+  return Array.isArray(parsed.data[0]) ? parsed.data[0].map((value) => String(value).trim()).filter(Boolean) : []
+}
+
 function isLikelyGtfsCsv(text, fileName) {
   const headerLine = getHeaderLine(text)
-  const delimiter = getCsvDelimiter(text, fileName)
 
-  if (!headerLine || !headerLine.includes(delimiter) || headerLine.includes('\u0000')) {
+  if (!headerLine || headerLine.includes('\u0000')) {
     return false
   }
 
-  const columns = headerLine.split(delimiter).map((value) => value.trim()).filter(Boolean)
+  const columns = parseCsvHeaderColumns(text, fileName)
   const expectedHeaders = expectedGtfsHeaders[fileName]
 
   if (!expectedHeaders) {
