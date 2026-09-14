@@ -265,7 +265,7 @@ function isLikelyGtfsCsv(text, fileName) {
   }
 
   const columns = headerLine.split(delimiter).map((value) => value.trim()).filter(Boolean)
-  return columns.length >= 2 && columns.every((column) => /^[A-Za-z0-9_.-]+$/u.test(column))
+  return columns.length >= 2 && (text.includes('\n') || text.includes('\r'))
 }
 
 function getPreferredTextDecoders(buffer) {
@@ -568,7 +568,11 @@ async function extractFilesToTempDirectory(buffer) {
   }
 }
 
-async function readExtractedFile(extractedFiles, fileName, { required = true } = {}) {
+function handleOptionalFileError(fileName, error) {
+  console.warn(`Skipping optional ${fileName}: ${error instanceof Error ? error.message : error}`)
+}
+
+async function parseExtractedFile(extractedFiles, fileName, { required = true } = {}) {
   const filePath = extractedFiles.get(fileName)
 
   if (!filePath) {
@@ -576,10 +580,11 @@ async function readExtractedFile(extractedFiles, fileName, { required = true } =
   }
 
   try {
-    return decodeGtfsText(await readFile(filePath), fileName)
+    const content = decodeGtfsText(await readFile(filePath), fileName)
+    return parseCsv(content, fileName)
   } catch (error) {
     if (!required) {
-      console.warn(`Skipping optional ${fileName}: ${error instanceof Error ? error.message : error}`)
+      handleOptionalFileError(fileName, error)
       return null
     }
 
@@ -588,19 +593,12 @@ async function readExtractedFile(extractedFiles, fileName, { required = true } =
 }
 
 async function buildTransitGraphPayload(extractedFiles) {
-  const agencyText = await readExtractedFile(extractedFiles, 'agency.txt', { required: false })
-  const routesText = await readExtractedFile(extractedFiles, 'routes.txt')
-  const tripsText = await readExtractedFile(extractedFiles, 'trips.txt')
-  const stopTimesText = await readExtractedFile(extractedFiles, 'stop_times.txt')
-  const stopsText = await readExtractedFile(extractedFiles, 'stops.txt')
-  const translationsText = await readExtractedFile(extractedFiles, 'translations.txt', { required: false })
-
-  const agencies = agencyText ? parseCsv(agencyText, 'agency.txt') : []
-  const routes = parseCsv(routesText ?? '', 'routes.txt')
-  const trips = parseCsv(tripsText ?? '', 'trips.txt')
-  const stopTimes = parseCsv(stopTimesText ?? '', 'stop_times.txt')
-  const stops = parseCsv(stopsText ?? '', 'stops.txt')
-  const translations = translationsText ? parseCsv(translationsText, 'translations.txt') : []
+  const agencies = (await parseExtractedFile(extractedFiles, 'agency.txt', { required: false })) ?? []
+  const routes = (await parseExtractedFile(extractedFiles, 'routes.txt')) ?? []
+  const trips = (await parseExtractedFile(extractedFiles, 'trips.txt')) ?? []
+  const stopTimes = (await parseExtractedFile(extractedFiles, 'stop_times.txt')) ?? []
+  const stops = (await parseExtractedFile(extractedFiles, 'stops.txt')) ?? []
+  const translations = (await parseExtractedFile(extractedFiles, 'translations.txt', { required: false })) ?? []
   const translationMap = buildTranslationMap(translations)
 
   const agencyMap = new Map()
