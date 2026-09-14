@@ -15,7 +15,7 @@ This phase upgrades the live GTFS route view into an interactive React Flow canv
 - edit the selected POI label from the sidebar
 - manually draw new edges between POI and transit nodes with standard React Flow connections
 - export the full fitted graph as a high-resolution SVG using `html-to-image`
-- configure Vite and a deployment GitHub Actions workflow for GitHub Pages publishing on pushes to `main`
+- optionally configure Vite and a deployment GitHub Actions workflow for GitHub Pages publishing on pushes to `main`
 
 ## New npm dependencies
 
@@ -31,11 +31,11 @@ npm run dev
 
 Then open the app, upload an official MOT GTFS `.zip` archive, add POIs from the sidebar, and export the current graph as SVG.
 
-## GitHub Pages
+## Optional GitHub Pages publishing
 
-The app is configured for repository Pages deployment, and the Vite `base` value in `vite.config.ts` should match the repository name used for GitHub Pages hosting.
+Local development does not require any GitHub Pages setup. If you want to publish the app, the Vite `base` value in `vite.config.ts` should match the repository name used for GitHub Pages hosting.
 
-Deployment workflow:
+Optional deployment workflow:
 - `.github/workflows/deploy-pages.yml`
 - builds with `npm ci && npm run build`
 - publishes the `dist/` directory via GitHub Pages

@@ -156,8 +156,8 @@ export function TransitMapLayout() {
   }
 
   function handleRouteSelect(routeId: string) {
-    setSelectedRouteId(routeId)
     resetCanvasState()
+    setSelectedRouteId(routeId)
     setExportError(null)
     setLoadError(null)
   }
@@ -180,8 +180,15 @@ export function TransitMapLayout() {
     setManualEdges((currentEdges) => connectCanvasEdge(connection, currentEdges, nodes))
   }
 
-  function handleSelectionChange({ nodes: selectedNodes }: OnSelectionChangeParams<CanvasNode, CanvasEdge>) {
-    setSelectedNodeId(selectedNodes[0]?.id ?? null)
+  function handleSelectionChange({ edges: selectedEdges, nodes: selectedNodes }: OnSelectionChangeParams<CanvasNode, CanvasEdge>) {
+    if (selectedNodes[0]) {
+      setSelectedNodeId(selectedNodes[0].id)
+      return
+    }
+
+    if (selectedEdges.length === 0) {
+      setSelectedNodeId(null)
+    }
   }
 
   function handleAddPoi() {
