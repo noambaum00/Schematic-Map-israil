@@ -579,9 +579,10 @@ async function parseExtractedFile(extractedFiles, fileName, { required = true } 
     return null
   }
 
+  let content
+
   try {
-    const content = decodeGtfsText(await readFile(filePath), fileName)
-    return parseCsv(content, fileName)
+    content = decodeGtfsText(await readFile(filePath), fileName)
   } catch (error) {
     if (!required) {
       handleOptionalFileError(fileName, error)
@@ -590,6 +591,8 @@ async function parseExtractedFile(extractedFiles, fileName, { required = true } 
 
     throw error
   }
+
+  return parseCsv(content, fileName)
 }
 
 async function buildTransitGraphPayload(extractedFiles) {
