@@ -17,7 +17,7 @@ This phase adds complex transfer-hub clustering to the GTFS preprocessing pipeli
 - edit the selected POI label from the sidebar
 - manually draw new edges between POI and transit nodes with standard React Flow connections
 - export the full fitted graph as a high-resolution SVG using `html-to-image`
-- optionally configure Vite and a deployment GitHub Actions workflow for GitHub Pages publishing on pushes to `main`
+- use the included Vite base-path configuration and GitHub Actions workflow for GitHub Pages publishing on pushes to `main`
 
 ## New npm dependencies
 

@@ -118,24 +118,25 @@ function createStableHubId(stops: RawStopForHubClustering[], prefix: 'hub-parent
 }
 
 function createHubNode(hubId: string, stops: RawStopForHubClustering[]): HubNode {
-  const constituentStopIds = stops.map((stop) => stop.stop_id)
-  const centroidLatitude = stops.reduce((total, stop) => total + stop.stop_lat, 0) / stops.length
-  const centroidLongitude = stops.reduce((total, stop) => total + stop.stop_lon, 0) / stops.length
+  const sortedStops = [...stops].sort((left, right) => left.stop_id.localeCompare(right.stop_id) || left.stop_name.localeCompare(right.stop_name))
+  const constituentStopIds = sortedStops.map((stop) => stop.stop_id)
+  const centroidLatitude = sortedStops.reduce((total, stop) => total + stop.stop_lat, 0) / sortedStops.length
+  const centroidLongitude = sortedStops.reduce((total, stop) => total + stop.stop_lon, 0) / sortedStops.length
   const clusterName =
-    stops
+    sortedStops
       .map((stop) => stop.stop_name)
-      .sort((left, right) => left.length - right.length)[0] ??
+      .sort((left, right) => left.length - right.length || left.localeCompare(right))[0] ??
     hubId
 
   return {
-    code: stops[0]?.stop_code ?? '',
+    code: sortedStops.find((stop) => stop.stop_code)?.stop_code ?? '',
     constituent_stop_ids: constituentStopIds,
     id: hubId,
     isTransferHub: stops.length > 1,
     latitude: centroidLatitude,
     longitude: centroidLongitude,
     name: clusterName,
-    wheelchairStatus: getClusterWheelchairStatus(stops),
+    wheelchairStatus: getClusterWheelchairStatus(sortedStops),
   }
 }
 
@@ -143,7 +144,7 @@ function buildParentStationClusters(stops: RawStopForHubClustering[]) {
   const clusters = new Map<string, RawStopForHubClustering[]>()
 
   for (const stop of stops) {
-    if (stop.location_type !== '0' || !stop.parent_station) {
+    if (!stop.parent_station) {
       continue
     }
 
