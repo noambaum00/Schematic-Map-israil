@@ -313,10 +313,6 @@ function getCsvDelimiter(text, fileName) {
   return attempts.sort((left, right) => right.columns.length - left.columns.length)[0]?.delimiter ?? ','
 }
 
-function parseCsvHeaderColumns(text, fileName) {
-  return parseCsvHeaderColumnsWithDelimiter(text, getCsvDelimiter(text, fileName))
-}
-
 function getPreferredTextDecoders(buffer) {
   const leadingBytes = buffer.subarray(0, 4)
 
