@@ -2,13 +2,15 @@
 
 A Vite + React + TypeScript app for generating schematic transit views for Israel's public transportation network.
 
-## Phase 7 status
+## Phase 8 status
 
-This phase adds dynamic operator styling and frequency-based rendering on top of the existing shareable, multilingual schematic React Flow canvas.
+This phase adds automated MOT GTFS fetching at build time together with a lighter white-and-blue application theme.
 
 ### Implemented now
-- upload and parse a real Israel MOT GTFS zip archive in the browser
-- derive live route summaries from `agency.txt`, `routes.txt`, `trips.txt`, `stop_times.txt`, `stops.txt`, and optional `translations.txt`
+- download the latest official MOT GTFS zip during build-time preprocessing
+- extract `agency.txt`, `routes.txt`, `trips.txt`, `stop_times.txt`, `stops.txt`, and optional `translations.txt` into a temporary directory before processing
+- generate `public/transit_graph.json` from the processed GTFS feed for static GitHub Pages hosting
+- auto-load the bundled processed feed when the app opens, while still allowing manual GTFS zip replacement from the sidebar
 - preprocess GTFS stops into transfer hubs using parent_station hierarchy first and geospatial proximity second
 - remap route stop sequences through a stop-to-hub dictionary before generating graph edges
 - render the selected route as a React Flow graph with draggable transit station and transfer-hub nodes
@@ -28,12 +30,14 @@ This phase adds dynamic operator styling and frequency-based rendering on top of
 - classify routes into high, medium, and low frequency tiers by counting GTFS trips per route in the loaded feed
 - render high-frequency lines thicker and low-frequency lines with lighter dashed strokes
 - display a floating legend that explains the active operator color and frequency styling
-- use the repository's Vite base-path configuration together with `.github/workflows/deploy-pages.yml` for GitHub Pages publishing on pushes to `main`
+- use a clean white-and-blue Tailwind theme across the sidebar, workspace, legend, nodes, and selection states
+- deploy GitHub Pages builds from both `.github/workflows/deploy-pages.yml` and nightly `.github/workflows/gtfs-update.yml`
 
 ## New npm dependencies
 
+- `axios` for downloading the latest GTFS archive during build-time processing
+- `adm-zip` for extracting required GTFS files into a temporary directory
 - `lz-string` for compressed URL-safe state serialization
-- optional future alternative: `@turf/distance` or `geolib` if you prefer external geospatial helpers
 - existing canvas/export packages remain `@xyflow/react` and `html-to-image`
 
 ## How to use
@@ -43,17 +47,21 @@ npm install
 npm run dev
 ```
 
-Then open the app, upload an official MOT GTFS `.zip` archive, drag stations and hubs on the schematic grid, add POIs, copy a share link, and export the current graph as SVG.
+If `public/transit_graph.json` is missing or stale, or if you are working specifically on the GTFS refresh flow, run `npm run gtfs:update` before opening the app. Then browse the bundled MOT feed, optionally replace it with another official GTFS `.zip` archive, drag stations and hubs on the schematic grid, add POIs, copy a share link, and export the current graph as SVG.
 
 ## GitHub Pages publishing
 
-This project is configured for GitHub Pages deployment through the workflow file in `.github/workflows/deploy-pages.yml`, and production builds are coupled to the Vite `base` value in `vite.config.ts`. The current production base is explicitly set to `/Schematic-Map-israil/`, so the published GitHub Pages path must use that exact repository slug, or you must update `vite.config.ts` before publishing. Forks or renamed repositories will break on GitHub Pages until that `base` value is changed to match their deployed path. Local development does not require Pages setup.
+This project is configured for GitHub Pages deployment through `.github/workflows/deploy-pages.yml` and `.github/workflows/gtfs-update.yml`, and production builds are coupled to the Vite `base` value in `vite.config.ts`. The current production base is explicitly set to `/Schematic-Map-israil/`, so the published GitHub Pages path must use that exact repository slug, or you must update `vite.config.ts` before publishing. Forks or renamed repositories will break on GitHub Pages until that `base` value is changed to match their deployed path. Local development does not require Pages setup.
 
-Configured deployment workflow:
+Configured deployment workflows:
 - `.github/workflows/deploy-pages.yml`
-- runs on pushes to `main`
-- builds with `npm ci && npm run build`
-- publishes the `dist/` directory via GitHub Pages after the repository Pages source is set to **GitHub Actions**
+  - runs on pushes to `main`
+  - fetches the latest GTFS feed with `npm run gtfs:update`
+  - builds with `npm ci && npm run build`
+- `.github/workflows/gtfs-update.yml`
+  - runs nightly at `0 2 * * *` and on manual dispatch
+  - fetches the latest GTFS feed with `npm run gtfs:update`
+  - builds and publishes the `dist/` directory via GitHub Pages
 
 Repository settings required:
 - open **Settings → Pages** in GitHub
@@ -62,7 +70,7 @@ Repository settings required:
 
 ## Current GTFS parsing scope
 
-The current parser reads and preprocesses:
+The parser reads and preprocesses:
 - `agency.txt` (optional)
 - `routes.txt`
 - `trips.txt`
@@ -70,7 +78,7 @@ The current parser reads and preprocesses:
 - `stops.txt`
 - `translations.txt` (optional)
 
-It uses the longest available trip pattern per route as the initial graph source, preserves wheelchair status as accessible, inaccessible, or unknown, merges clustered stops into centroid-based transfer hubs with `constituent_stop_ids` metadata, and now keeps localized English, Hebrew, and Arabic stop names when available.
+It uses the longest available trip pattern per route as the initial graph source, preserves wheelchair status as accessible, inaccessible, or unknown, merges clustered stops into centroid-based transfer hubs with `constituent_stop_ids` metadata, and keeps localized English, Hebrew, and Arabic stop names when available.
 
 ## Export behavior
 
@@ -80,7 +88,7 @@ Before exporting, the app temporarily calls React Flow fit-to-view behavior so t
 
 - the app writes compressed shared state into `#/?state=...` so GitHub Pages can open shared links without server-side routing
 - saved state includes the selected route IDs, POI nodes, manual POI connections, and current node positions
-- when a shared URL is opened, the app restores the saved language immediately and reapplies the saved canvas state after the matching GTFS feed is uploaded
+- when a shared URL is opened, the app restores the saved language immediately and reapplies the saved canvas state after the matching GTFS feed is loaded
 
 ## Schematic rendering behavior
 

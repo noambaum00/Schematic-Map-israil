@@ -1,10 +1,10 @@
 import { addEdge, Position, type Connection, type Edge, type Node } from '@xyflow/react'
 
 import { getFrequencyStrokeStyle } from '../data/transitPlan'
-import type { ParsedRoute, TransitLanguage } from './gtfs'
-import { buildSchematicPath } from './schematicPath'
 import type { POINodeData } from '../components/nodes/POINode'
 import type { TransitStopNodeData } from '../components/nodes/TransitStopNode'
+import type { ParsedRoute, TransitLanguage } from './gtfs'
+import { buildSchematicPath } from './schematicPath'
 
 export type TransitCanvasNode = Node<TransitStopNodeData, 'transit'>
 export type HubCanvasNode = Node<TransitStopNodeData, 'hub'>
@@ -48,10 +48,7 @@ function getStopLabel(route: ParsedRoute, stopId: string, activeLanguage: Transi
   return stop?.names[activeLanguage] || stop?.name || stopId
 }
 
-export function buildTransitGraph(
-  route: ParsedRoute | null,
-  activeLanguage: TransitLanguage,
-): { edges: CanvasEdge[]; nodes: CanvasNode[] } {
+export function buildTransitGraph(route: ParsedRoute | null, activeLanguage: TransitLanguage): { edges: CanvasEdge[]; nodes: CanvasNode[] } {
   if (!route) {
     return { edges: [], nodes: [] }
   }
@@ -183,7 +180,7 @@ export function connectCanvasEdge(
         isManual: true,
       },
       id: `manual-edge-${source}-${target}-${currentEdges.length + 1}`,
-      style: { stroke: '#f8fafc', strokeDasharray: '10 6', strokeWidth: 3 },
+      style: { stroke: '#2563eb', strokeDasharray: '10 6', strokeWidth: 3 },
       type: routingStyle,
     },
     currentEdges,
@@ -212,7 +209,7 @@ export function getCanvasEdgeStroke(edge: Pick<CanvasEdge, 'data' | 'style'>) {
     return edge.style.stroke
   }
 
-  return edge.data?.operatorColor ?? '#94a3b8'
+  return edge.data?.operatorColor ?? '#64748b'
 }
 
 export function applyEdgePresentation(edge: CanvasEdge, routingStyle: EdgeRoutingStyle): CanvasEdge {

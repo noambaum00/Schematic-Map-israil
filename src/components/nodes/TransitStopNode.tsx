@@ -21,25 +21,23 @@ export function TransitStopNode({ data, selected }: NodeProps<TransitCanvasNode>
 
   return (
     <div
-      className={`min-w-44 rounded-2xl border px-4 py-3 shadow-lg transition ${
-        selected
-          ? 'border-cyan-300 bg-slate-900 text-white'
-          : 'border-white/10 bg-slate-950/90 text-slate-100'
+      className={`min-w-44 rounded-2xl border px-4 py-3 shadow-sm transition ${
+        selected ? 'border-blue-500 bg-blue-50 text-gray-900 ring-2 ring-blue-200' : 'border-gray-200 bg-white text-gray-900'
       }`}
       dir={data.direction}
       style={{ textAlign: data.textAlign }}
     >
-      <Handle className="!h-3 !w-3 !border-2 !border-slate-950 !bg-cyan-200" position={Position.Left} type="target" />
-      <Handle className="!h-3 !w-3 !border-2 !border-slate-950 !bg-cyan-200" position={Position.Right} type="source" />
-      <Handle className="!h-3 !w-3 !border-2 !border-slate-950 !bg-cyan-200" position={Position.Top} type="target" />
-      <Handle className="!h-3 !w-3 !border-2 !border-slate-950 !bg-cyan-200" position={Position.Bottom} type="source" />
+      <Handle className="!h-3 !w-3 !border-2 !border-white !bg-blue-600" position={Position.Left} type="target" />
+      <Handle className="!h-3 !w-3 !border-2 !border-white !bg-blue-600" position={Position.Right} type="source" />
+      <Handle className="!h-3 !w-3 !border-2 !border-white !bg-blue-600" position={Position.Top} type="target" />
+      <Handle className="!h-3 !w-3 !border-2 !border-white !bg-blue-600" position={Position.Bottom} type="source" />
       <div className="flex items-start gap-3">
-        <span className="mt-1 h-3.5 w-3.5 rounded-full border border-white/20" style={{ backgroundColor: data.operatorColor }} />
+        <span className="mt-1 h-3.5 w-3.5 rounded-full border border-gray-200" style={{ backgroundColor: data.operatorColor }} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{data.label}</p>
-          <p className="mt-1 text-xs text-slate-400">{data.code || text.gtfsStationFallback}</p>
-          {data.wheelchairStatus === 'accessible' ? <p className="mt-1 text-xs text-emerald-300">{text.wheelchairAccessible}</p> : null}
-          {data.wheelchairStatus === 'inaccessible' ? <p className="mt-1 text-xs text-rose-300">{text.wheelchairInaccessible}</p> : null}
+          <p className="mt-1 text-xs text-gray-500">{data.code || text.gtfsStationFallback}</p>
+          {data.wheelchairStatus === 'accessible' ? <p className="mt-1 text-xs text-blue-700">{text.wheelchairAccessible}</p> : null}
+          {data.wheelchairStatus === 'inaccessible' ? <p className="mt-1 text-xs text-red-600">{text.wheelchairInaccessible}</p> : null}
         </div>
       </div>
     </div>

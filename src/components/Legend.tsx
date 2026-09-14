@@ -20,34 +20,31 @@ export function Legend({ activeLanguage, route }: LegendProps) {
   return (
     <aside
       aria-label={text.legendTitle}
-      className={`pointer-events-none absolute bottom-6 ${horizontalAnchor} z-20 w-72 rounded-[1.5rem] border border-white/10 bg-slate-950/92 p-4 shadow-2xl backdrop-blur`}
+      className={`pointer-events-none absolute bottom-6 ${horizontalAnchor} z-20 w-72 rounded-[1.5rem] border border-gray-200 bg-white/95 p-4 shadow-sm backdrop-blur`}
       role="note"
     >
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">{text.legendTitle}</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600">{text.legendTitle}</p>
       <div className="mt-4 space-y-4">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">{text.operatorLegend}</p>
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">{text.operatorLegend}</p>
           <div className="mt-2 flex items-center gap-3">
             <span className="h-3 w-10 rounded-full" style={{ backgroundColor: route.operatorColor }} />
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-white">{route.operator}</p>
-              <p className="text-xs text-slate-400">{text.visibleRouteTrips.replace('{count}', String(route.tripCount))}</p>
+              <p className="truncate text-sm font-semibold text-gray-900">{route.operator}</p>
+              <p className="text-xs text-gray-500">{text.visibleRouteTrips.replace('{count}', String(route.tripCount))}</p>
             </div>
           </div>
         </div>
 
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">{text.frequencyLegend}</p>
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">{text.frequencyLegend}</p>
           <div className="mt-2 space-y-2">
             {frequencyTiers.map((tier) => {
               const style = getFrequencyStrokeStyle(tier)
               const isActive = route.frequencyTier === tier
 
               return (
-                <div
-                  key={tier}
-                  className={`flex items-center justify-between gap-3 rounded-2xl px-3 py-2 ${isActive ? 'bg-white/8' : ''}`}
-                >
+                <div key={tier} className={`flex items-center justify-between gap-3 rounded-2xl px-3 py-2 ${isActive ? 'bg-blue-50' : 'bg-gray-50'}`}>
                   <div className="flex items-center gap-3">
                     <span
                       className="block w-12 border-t"
@@ -57,9 +54,9 @@ export function Legend({ activeLanguage, route }: LegendProps) {
                         borderTopWidth: `${style.strokeWidth}px`,
                       }}
                     />
-                    <span className="text-sm text-slate-200">{text.frequencyTierLabels[tier]}</span>
+                    <span className="text-sm text-gray-700">{text.frequencyTierLabels[tier]}</span>
                   </div>
-                  {isActive ? <span className="text-xs font-medium text-cyan-200">{text.activeLegendBadge}</span> : null}
+                  {isActive ? <span className="text-xs font-medium text-blue-700">{text.activeLegendBadge}</span> : null}
                 </div>
               )
             })}

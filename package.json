@@ -7,11 +7,15 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "gtfs:update": "node ./scripts/gtfs-update.mjs",
+    "prebuild": "node ./scripts/gtfs-update.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@xyflow/react": "^12.11.6",
+    "adm-zip": "^0.6.1",
+    "axios": "^1.20.0",
     "html-to-image": "^1.11.13",
     "jszip": "^3.10.2",
     "lz-string": "^1.5.0",
