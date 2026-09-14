@@ -61,24 +61,24 @@ export function Sidebar({ activeLanguage, onLanguageChange, query, onQueryChange
           <legend className="text-sm font-semibold text-white">Language</legend>
           <span className="text-xs text-slate-400">RTL/LTR ready</span>
         </div>
-        <div aria-label="Interface language" className="grid grid-cols-3 gap-2" role="radiogroup">
+        <div className="grid grid-cols-3 gap-2">
           {languages.map((language) => {
             const isActive = language === activeLanguage
+
             return (
-              <button
-                key={language}
-                aria-checked={isActive}
-                className={`rounded-2xl border px-3 py-2 text-sm transition ${
-                  isActive
-                    ? 'border-cyan-300 bg-cyan-300/15 text-white'
-                    : 'border-white/10 bg-slate-900 text-slate-300 hover:border-white/30'
-                }`}
-                role="radio"
-                type="button"
-                onClick={() => onLanguageChange(language)}
-              >
-                {language}
-              </button>
+              <label key={language} className="block cursor-pointer">
+                <input
+                  checked={isActive}
+                  className="peer sr-only"
+                  name="interface-language"
+                  type="radio"
+                  value={language}
+                  onChange={() => onLanguageChange(language)}
+                />
+                <span className="block rounded-2xl border border-white/10 bg-slate-900 px-3 py-2 text-center text-sm text-slate-300 transition peer-checked:border-cyan-300 peer-checked:bg-cyan-300/15 peer-checked:text-white peer-focus-visible:border-cyan-300 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-cyan-300 hover:border-white/30">
+                  {language}
+                </span>
+              </label>
             )
           })}
         </div>
