@@ -239,20 +239,18 @@ export function clusterStopsIntoTransferHubs(
 
 export function remapEdgesToHubs(edges: HubEdge[], stopToHubMap: Record<string, string>) {
   const remappedEdges: HubEdge[] = []
+  const seenPairs = new Set<string>()
 
   for (const edge of edges) {
     const remappedSource = stopToHubMap[edge.source] ?? edge.source
     const remappedTarget = stopToHubMap[edge.target] ?? edge.target
-    const previousEdge = remappedEdges.at(-1)
+    const pairKey = `${remappedSource}->${remappedTarget}`
 
-    if (remappedSource === remappedTarget) {
+    if (remappedSource === remappedTarget || seenPairs.has(pairKey)) {
       continue
     }
 
-    if (previousEdge && previousEdge.source === remappedSource && previousEdge.target === remappedTarget) {
-      continue
-    }
-
+    seenPairs.add(pairKey)
     remappedEdges.push({
       ...edge,
       source: remappedSource,

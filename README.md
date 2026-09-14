@@ -34,11 +34,11 @@ npm run dev
 
 Then open the app, upload an official MOT GTFS `.zip` archive, add POIs from the sidebar, and export the current graph as SVG.
 
-## Optional GitHub Pages publishing
+## GitHub Pages publishing
 
-Local development does not require any GitHub Pages setup. If you want to publish the app, the Vite `base` value in `vite.config.ts` should match the repository name used for GitHub Pages hosting.
+The repository already includes a GitHub Pages deployment workflow. Local development does not require Pages setup, but publishing still requires the repository Pages settings to use GitHub Actions and the Vite `base` value in `vite.config.ts` to match the repository name.
 
-Optional deployment workflow:
+Configured deployment workflow:
 - `.github/workflows/deploy-pages.yml`
 - builds with `npm ci && npm run build`
 - publishes the `dist/` directory via GitHub Pages

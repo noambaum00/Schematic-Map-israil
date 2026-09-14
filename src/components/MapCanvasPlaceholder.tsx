@@ -121,7 +121,6 @@ function CanvasInner({
               onNodesChange={onNodesChange}
               onSelectionChange={onSelectionChange}
               panOnScroll
-              proOptions={{ hideAttribution: true }}
             >
               <Background color="#1e293b" gap={32} size={1.2} />
               <MiniMap
