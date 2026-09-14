@@ -397,6 +397,10 @@ function decodeGtfsText(buffer, fileName) {
     }
   }
 
+  if (fallbackDecodedText && shouldMatchExpectedHeaders(fileName)) {
+    throw new Error(`Failed to parse ${fileName}: missing expected GTFS headers.`)
+  }
+
   if (fallbackDecodedText) {
     return fallbackDecodedText
   }
@@ -477,7 +481,7 @@ function buildTranslationMap(translations) {
   const translationMap = new Map()
 
   for (const translation of translations) {
-    const translationRecordId = translation.record_id || translation.field_value
+    const translationRecordId = translation.record_id ?? translation.field_value
 
     if (translation.table_name !== 'stops' || translation.field_name !== 'stop_name' || !translationRecordId) {
       continue
