@@ -401,7 +401,8 @@ function decodeGtfsText(buffer, fileName) {
     return fallbackDecodedText
   }
 
-  throw new GtfsDecodeError(`Unable to decode ${fileName}. Tried: ${attemptedEncodings.join(', ')}`)
+  const attemptsSummary = attemptedEncodings.join(', ') || 'no decoders produced usable text'
+  throw new GtfsDecodeError(`Unable to decode ${fileName}. Tried: ${attemptsSummary}`)
 }
 
 function validateRequiredGtfsHeaders(fileName, content, delimiter) {
