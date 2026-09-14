@@ -1,6 +1,7 @@
 import { addEdge, Position, type Connection, type Edge, type Node } from '@xyflow/react'
 
 import type { ParsedRoute, TransitLanguage } from './gtfs'
+import { buildSchematicPath } from './schematicPath'
 import type { POINodeData } from '../components/nodes/POINode'
 import type { TransitStopNodeData } from '../components/nodes/TransitStopNode'
 
@@ -66,11 +67,35 @@ export function buildTransitGraph(
       type: stop.isTransferHub ? 'hub' : 'transit',
     }
   })
+  const nodeById = new Map(nodes.map((node) => [node.id, node]))
+  let labeledEdgeId: string | null = null
+
+  if (route.mode === 'rail' && route.trainTemplateLabel) {
+    let longestEdgeLength = -1
+
+    for (let index = 1; index < route.stops.length; index += 1) {
+      const sourceNode = nodeById.get(route.stops[index - 1]!.id)
+      const targetNode = nodeById.get(route.stops[index]!.id)
+
+      if (!sourceNode || !targetNode) {
+        continue
+      }
+
+      const path = buildSchematicPath(sourceNode.position.x, sourceNode.position.y, targetNode.position.x, targetNode.position.y)
+      const edgeLength = path.segments.reduce((total, segment) => total + segment.length, 0)
+      const edgeId = `${route.id}-edge-${index - 1}`
+
+      if (edgeLength > longestEdgeLength) {
+        longestEdgeLength = edgeLength
+        labeledEdgeId = edgeId
+      }
+    }
+  }
 
   const edges = route.stops.slice(1).map<CanvasEdge>((stop, index) => ({
     animated: false,
     id: `${route.id}-edge-${index}`,
-    label: route.mode === 'rail' ? route.trainTemplateLabel ?? undefined : undefined,
+    label: labeledEdgeId === `${route.id}-edge-${index}` ? route.trainTemplateLabel ?? undefined : undefined,
     source: route.stops[index].id,
     style: { stroke: route.operatorColor, strokeWidth: stop.isTransferHub || route.stops[index].isTransferHub ? 6 : 5 },
     target: stop.id,

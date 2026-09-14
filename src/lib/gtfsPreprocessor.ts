@@ -45,6 +45,10 @@ export type HubClusteringResult = {
   stopToHubMap: Record<string, string>
 }
 
+type EdgeRemapOptions = {
+  preserveDirection?: boolean
+}
+
 function normalizeWhitespace(value: string) {
   return value.replace(/\s+/g, ' ').trim()
 }
@@ -255,14 +259,19 @@ export function clusterStopsIntoTransferHubs(
   return { hubNodes, stopToHubMap }
 }
 
-export function remapEdgesToHubs(edges: HubEdge[], stopToHubMap: Record<string, string>) {
+export function remapEdgesToHubs(
+  edges: HubEdge[],
+  stopToHubMap: Record<string, string>,
+  options: EdgeRemapOptions = {},
+) {
   const remappedEdges: HubEdge[] = []
   const seenPairs = new Set<string>()
+  const preserveDirection = options.preserveDirection ?? false
 
   for (const edge of edges) {
     const remappedSource = stopToHubMap[edge.source] ?? edge.source
     const remappedTarget = stopToHubMap[edge.target] ?? edge.target
-    const pairKey = `${remappedSource}->${remappedTarget}`
+    const pairKey = preserveDirection ? `${remappedSource}->${remappedTarget}` : [remappedSource, remappedTarget].sort().join('<->')
 
     if (remappedSource === remappedTarget || seenPairs.has(pairKey)) {
       continue
