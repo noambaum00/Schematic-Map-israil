@@ -116,12 +116,13 @@ function CanvasInner({
             role="region"
           >
             <p className="sr-only" id="canvas-region-description">
-              Use the interactive graph to inspect GTFS station and transfer hub nodes, add POI nodes, draw octilinear manual connections, and export the full viewport as SVG.
+              Use the interactive graph to inspect GTFS station and transfer hub nodes, add POI nodes, draw octilinear manual connections, and export the full React Flow canvas as SVG.
             </p>
             <ReactFlow<CanvasNode, CanvasEdge>
               attributionPosition="bottom-left"
               connectionMode={ConnectionMode.Loose}
               defaultEdgeOptions={{ style: { stroke: '#94a3b8', strokeWidth: 3 }, type: 'schematic' }}
+              elementsSelectable
               edgeTypes={edgeTypes}
               edges={edges}
               nodeTypes={nodeTypes}

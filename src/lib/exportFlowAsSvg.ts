@@ -22,10 +22,10 @@ export async function exportFlowAsSvg<NodeType extends Node = Node, EdgeType ext
     throw new Error('The canvas is not ready for export yet.')
   }
 
-  const viewport = wrapper.querySelector<HTMLDivElement>('.react-flow__viewport')
+  const canvas = wrapper.querySelector<HTMLDivElement>('.react-flow')
 
-  if (!viewport) {
-    throw new Error('Unable to find the React Flow viewport for export.')
+  if (!canvas) {
+    throw new Error('Unable to find the React Flow canvas for export.')
   }
 
   const nodes = reactFlow.getNodes()
@@ -38,7 +38,7 @@ export async function exportFlowAsSvg<NodeType extends Node = Node, EdgeType ext
       await waitForPaint()
     }
 
-    const dataUrl = await toSvg(viewport, {
+    const dataUrl = await toSvg(canvas, {
       backgroundColor: '#020617',
       cacheBust: true,
       pixelRatio: 2,
