@@ -18,7 +18,7 @@ This phase upgrades the React Flow rendering to look more like a classic schemat
 - add Point of Interest (POI) nodes at the center of the visible canvas
 - edit the selected POI label from the sidebar
 - manually draw new edges between POI and transit nodes with standard React Flow connections
-- export the full fitted graph as a high-resolution SVG using `html-to-image`
+- export the full fitted graph as a vector SVG using `html-to-image`
 - snap node dragging to a `20 x 20` grid for cleaner manual schematic adjustments
 - use the included Vite base-path configuration and GitHub Actions workflow for GitHub Pages publishing on pushes to `main`
 

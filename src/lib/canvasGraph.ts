@@ -67,15 +67,21 @@ export function buildTransitGraph(
       type: stop.isTransferHub ? 'hub' : 'transit',
     }
   })
+  const edgeDescriptors = route.stops.slice(1).map((stop, index) => ({
+    id: `${route.id}-edge-${index}`,
+    source: route.stops[index]!.id,
+    stop,
+    target: stop.id,
+  }))
   const nodeById = new Map(nodes.map((node) => [node.id, node]))
   let labeledEdgeId: string | null = null
 
   if (route.mode === 'rail' && route.trainTemplateLabel) {
     let longestEdgeLength = -1
 
-    for (let index = 1; index < route.stops.length; index += 1) {
-      const sourceNode = nodeById.get(route.stops[index - 1]!.id)
-      const targetNode = nodeById.get(route.stops[index]!.id)
+    for (const edge of edgeDescriptors) {
+      const sourceNode = nodeById.get(edge.source)
+      const targetNode = nodeById.get(edge.target)
 
       if (!sourceNode || !targetNode) {
         continue
@@ -83,22 +89,21 @@ export function buildTransitGraph(
 
       const path = buildSchematicPath(sourceNode.position.x, sourceNode.position.y, targetNode.position.x, targetNode.position.y)
       const edgeLength = path.segments.reduce((total, segment) => total + segment.length, 0)
-      const edgeId = `${route.id}-edge-${index - 1}`
 
       if (edgeLength > longestEdgeLength) {
         longestEdgeLength = edgeLength
-        labeledEdgeId = edgeId
+        labeledEdgeId = edge.id
       }
     }
   }
 
-  const edges = route.stops.slice(1).map<CanvasEdge>((stop, index) => ({
+  const edges = edgeDescriptors.map<CanvasEdge>(({ id, source, stop, target }) => ({
     animated: false,
-    id: `${route.id}-edge-${index}`,
-    label: labeledEdgeId === `${route.id}-edge-${index}` ? route.trainTemplateLabel ?? undefined : undefined,
-    source: route.stops[index].id,
-    style: { stroke: route.operatorColor, strokeWidth: stop.isTransferHub || route.stops[index].isTransferHub ? 6 : 5 },
-    target: stop.id,
+    id,
+    label: labeledEdgeId === id ? route.trainTemplateLabel ?? undefined : undefined,
+    source,
+    style: { stroke: route.operatorColor, strokeWidth: stop.isTransferHub || nodeById.get(source)?.data.isTransferHub ? 6 : 5 },
+    target,
     type: 'schematic',
   }))
 

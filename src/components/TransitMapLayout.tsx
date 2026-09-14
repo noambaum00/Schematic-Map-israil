@@ -114,7 +114,7 @@ export function TransitMapLayout() {
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
       await reactFlowInstance.fitView({ duration: 250, includeHiddenNodes: true, padding: 0.18 })
     })()
-  }, [baseGraph.nodes.length, language, reactFlowInstance, selectedRouteId])
+  }, [baseGraph.nodes.length, reactFlowInstance, selectedRouteId])
 
   function resetCanvasState() {
     setPoiNodes([])
