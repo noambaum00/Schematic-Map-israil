@@ -118,9 +118,8 @@ function CanvasInner({
             ref={wrapperRef}
             aria-label={activeText.canvasRegionLabel}
             aria-describedby="canvas-region-description"
-            className="h-[720px] w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300"
+            className="h-[720px] w-full"
             role="region"
-            tabIndex={0}
           >
             <p className="sr-only" id="canvas-region-description">
               {activeText.canvasRegionDescription}

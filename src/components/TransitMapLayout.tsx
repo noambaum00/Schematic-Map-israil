@@ -172,7 +172,7 @@ export function TransitMapLayout() {
       setSelectedRouteId(nextSelectedRouteId)
 
       if (sharedState && !hasAppliedSharedStateRef.current) {
-        const selectedRoute = parsedFeed.routes.find((route) => route.id === nextSelectedRouteId)
+        const sharedRoutes = parsedFeed.routes.filter((route) => sharedState.selectedRouteIds.includes(route.id))
         const restoredPoiNodes: POICanvasNode[] = sharedState.poiNodes.map((node) => ({
           data: {
             direction: getDirection(language),
@@ -184,7 +184,7 @@ export function TransitMapLayout() {
           type: 'poi',
         }))
         const availableNodeIds = new Set([
-          ...(selectedRoute?.stops.map((stop) => stop.id) ?? []),
+          ...sharedRoutes.flatMap((route) => route.stops.map((stop) => stop.id)),
           ...restoredPoiNodes.map((node) => node.id),
         ])
         const restoredPoiIdNumbers = restoredPoiNodes

@@ -28,7 +28,7 @@ This phase adds dynamic operator styling and frequency-based rendering on top of
 - classify routes into high, medium, and low frequency tiers by counting GTFS trips per route in the loaded feed
 - render high-frequency lines thicker and low-frequency lines with lighter dashed strokes
 - display a floating legend that explains the active operator color and frequency styling
-- use the included Vite base-path configuration and GitHub Actions workflow for GitHub Pages publishing on pushes to `main`
+- use the repository's Vite base-path configuration together with `.github/workflows/deploy-pages.yml` for GitHub Pages publishing on pushes to `main`
 
 ## New npm dependencies
 
