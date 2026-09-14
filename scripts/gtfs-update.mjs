@@ -27,6 +27,7 @@ const textDecoderSpecs = [
   { encoding: 'windows-1255', options: { fatal: true } },
   { encoding: 'windows-1252', options: { fatal: true } },
 ]
+const utf32EncodingSpecs = ['utf-32le', 'utf-32be']
 
 class GtfsDecodeError extends Error {
   constructor(message) {
@@ -364,9 +365,117 @@ function getPreferredTextDecoders(buffer) {
   return textDecoderSpecs
 }
 
+function getPreferredUtf32Encodings(buffer) {
+  if (buffer.length < 4) {
+    return []
+  }
+
+  const leadingBytes = buffer.subarray(0, 4)
+
+  if (leadingBytes[0] === 0xff && leadingBytes[1] === 0xfe && leadingBytes[2] === 0x00 && leadingBytes[3] === 0x00) {
+    return ['utf-32le', 'utf-32be']
+  }
+
+  if (leadingBytes[0] === 0x00 && leadingBytes[1] === 0x00 && leadingBytes[2] === 0xfe && leadingBytes[3] === 0xff) {
+    return ['utf-32be', 'utf-32le']
+  }
+
+  const sampleLength = Math.min(buffer.length - (buffer.length % 4), 512)
+
+  if (sampleLength < 16) {
+    return []
+  }
+
+  let utf32leZeroDensity = 0
+  let utf32beZeroDensity = 0
+
+  for (let index = 0; index < sampleLength; index += 4) {
+    if (buffer[index + 1] === 0x00) utf32leZeroDensity += 1
+    if (buffer[index + 2] === 0x00) utf32leZeroDensity += 1
+    if (buffer[index + 3] === 0x00) utf32leZeroDensity += 1
+    if (buffer[index] === 0x00) utf32beZeroDensity += 1
+    if (buffer[index + 1] === 0x00) utf32beZeroDensity += 1
+    if (buffer[index + 2] === 0x00) utf32beZeroDensity += 1
+  }
+
+  const totalTripletBytes = (sampleLength / 4) * 3
+  const utf32leRatio = utf32leZeroDensity / totalTripletBytes
+  const utf32beRatio = utf32beZeroDensity / totalTripletBytes
+
+  if (utf32leRatio >= 0.8 && utf32leRatio >= utf32beRatio) {
+    return ['utf-32le', 'utf-32be']
+  }
+
+  if (utf32beRatio >= 0.8 && utf32beRatio > utf32leRatio) {
+    return ['utf-32be', 'utf-32le']
+  }
+
+  return []
+}
+
+function decodeUtf32Text(buffer, encoding) {
+  if (!utf32EncodingSpecs.includes(encoding)) {
+    throw new Error(`Unsupported decoder preference: ${encoding}`)
+  }
+
+  const littleEndian = encoding === 'utf-32le'
+  const startIndex =
+    littleEndian && buffer[0] === 0xff && buffer[1] === 0xfe && buffer[2] === 0x00 && buffer[3] === 0x00
+      ? 4
+      : !littleEndian && buffer[0] === 0x00 && buffer[1] === 0x00 && buffer[2] === 0xfe && buffer[3] === 0xff
+        ? 4
+        : 0
+  const byteLength = buffer.length - startIndex
+
+  if (byteLength <= 0 || byteLength % 4 !== 0) {
+    throw new TypeError('Invalid UTF-32 byte length.')
+  }
+
+  let decoded = ''
+
+  for (let index = startIndex; index < buffer.length; index += 4) {
+    const codePoint = littleEndian
+      ? buffer[index] | (buffer[index + 1] << 8) | (buffer[index + 2] << 16) | (buffer[index + 3] << 24)
+      : buffer[index + 3] | (buffer[index + 2] << 8) | (buffer[index + 1] << 16) | (buffer[index] << 24)
+
+    const unsignedCodePoint = codePoint >>> 0
+
+    if (unsignedCodePoint > 0x10ffff || (unsignedCodePoint >= 0xd800 && unsignedCodePoint <= 0xdfff)) {
+      throw new TypeError('Invalid UTF-32 code point.')
+    }
+
+    decoded += String.fromCodePoint(unsignedCodePoint)
+  }
+
+  return decoded
+}
+
 function decodeGtfsText(buffer, fileName) {
   const attemptedEncodings = []
   let fallbackDecodedText = null
+
+  for (const encoding of getPreferredUtf32Encodings(buffer)) {
+    try {
+      const decoded = stripLeadingBom(decodeUtf32Text(buffer, encoding))
+
+      if (!shouldMatchExpectedHeaders(fileName)) {
+        return decoded
+      }
+
+      const delimiter = getCsvDelimiter(decoded, fileName)
+      const columns = parseCsvHeaderColumnsWithDelimiter(decoded, delimiter)
+
+      if (matchesExpectedHeaders(fileName, columns)) {
+        return decoded
+      }
+
+      fallbackDecodedText ??= decoded
+      attemptedEncodings.push(`${encoding} (decoded text headers did not match ${fileName})`)
+    } catch (error) {
+      attemptedEncodings.push(`${encoding} (${error && typeof error === 'object' && 'name' in error ? error.name : 'decode error'})`)
+      continue
+    }
+  }
 
   for (const { encoding, options } of getPreferredTextDecoders(buffer)) {
     try {

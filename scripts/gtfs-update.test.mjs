@@ -15,6 +15,21 @@ test('decodes UTF-16 GTFS files and detects semicolon delimiters', () => {
   assert.deepEqual(parseCsv(decoded, 'routes.txt'), [{ route_id: 'R1', route_type: '3' }])
 })
 
+test('decodes UTF-32LE GTFS files and preserves header validation', () => {
+  const content = 'trip_id,stop_id,stop_sequence\nT1,S1,1\n'
+  const bytes = [0xff, 0xfe, 0x00, 0x00]
+
+  for (const character of content) {
+    const codePoint = character.codePointAt(0)
+    bytes.push(codePoint & 0xff, (codePoint >> 8) & 0xff, (codePoint >> 16) & 0xff, (codePoint >> 24) & 0xff)
+  }
+
+  const decoded = decodeGtfsText(Buffer.from(bytes), 'stop_times.txt')
+
+  assert.equal(decoded, content)
+  assert.deepEqual(parseCsv(decoded, 'stop_times.txt'), [{ trip_id: 'T1', stop_id: 'S1', stop_sequence: '1' }])
+})
+
 test('skips optional files only when decoding fails', async () => {
   const tempDirectory = await mkdtemp(join(tmpdir(), 'gtfs-update-test-'))
 
