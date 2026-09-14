@@ -172,27 +172,39 @@ export function TransitMapLayout() {
 
       if (sharedState && !hasAppliedSharedStateRef.current) {
         const selectedRoute = parsedFeed.routes.find((route) => route.id === nextSelectedRouteId)
+        const restoredPoiNodes: POICanvasNode[] = sharedState.poiNodes.map((node) => ({
+          data: {
+            direction: getDirection(sharedState.language),
+            label: node.label,
+            textAlign: getTextAlignment(sharedState.language),
+          },
+          id: node.id,
+          position: { x: node.x, y: node.y },
+          type: 'poi',
+        }))
         const availableNodeIds = new Set([
           ...(selectedRoute?.stops.map((stop) => stop.id) ?? []),
-          ...sharedState.poiNodes.map((node) => node.id),
+          ...restoredPoiNodes.map((node) => node.id),
         ])
+        const restoredPoiIdNumbers = restoredPoiNodes
+          .map((node) => Number(node.id.replace('poi-', '')))
+          .filter((value) => Number.isFinite(value))
+        const highestPoiIndex = restoredPoiIdNumbers.length > 0 ? Math.max(...restoredPoiIdNumbers) : 0
 
         setTransitNodePositions(sharedState.nodePositions)
-        setPoiNodes(
-          sharedState.poiNodes.map((node) => ({
-            data: {
-              direction: getDirection(sharedState.language),
-              label: node.label,
-              textAlign: getTextAlignment(sharedState.language),
-            },
-            id: node.id,
-            position: { x: node.x, y: node.y },
-            type: 'poi',
-          })),
-        )
+        setPoiNodes(restoredPoiNodes)
         setManualEdges(
           sharedState.manualEdges
-            .filter((edge) => availableNodeIds.has(edge.source) && availableNodeIds.has(edge.target))
+            .filter((edge) => {
+              if (!availableNodeIds.has(edge.source) || !availableNodeIds.has(edge.target)) {
+                return false
+              }
+
+              const sourceIsPoi = restoredPoiNodes.some((node) => node.id === edge.source)
+              const targetIsPoi = restoredPoiNodes.some((node) => node.id === edge.target)
+
+              return sourceIsPoi !== targetIsPoi
+            })
             .map((edge, index) => ({
               id: `shared-edge-${edge.source}-${edge.target}-${index + 1}`,
               source: edge.source,
@@ -201,6 +213,7 @@ export function TransitMapLayout() {
               type: 'schematic',
             })),
         )
+        poiCounterRef.current = highestPoiIndex + 1
         hasAppliedSharedStateRef.current = true
       }
     } catch (error) {
@@ -219,6 +232,20 @@ export function TransitMapLayout() {
   }
 
   function handleRouteSelect(routeId: string) {
+    const nextRoute = allRoutes.find((route) => route.id === routeId)
+    const nextRouteStopIds = new Set(nextRoute?.stops.map((stop) => stop.id) ?? [])
+
+    setTransitNodePositions({})
+    setManualEdges((currentEdges) =>
+      currentEdges.filter((edge) => {
+        const sourceIsPoi = poiNodes.some((node) => node.id === edge.source)
+        const targetIsPoi = poiNodes.some((node) => node.id === edge.target)
+        const sourceIsRouteStop = nextRouteStopIds.has(edge.source)
+        const targetIsRouteStop = nextRouteStopIds.has(edge.target)
+
+        return (sourceIsPoi && targetIsRouteStop) || (targetIsPoi && sourceIsRouteStop)
+      }),
+    )
     setSelectedRouteId(routeId)
     setExportError(null)
     setLoadError(null)
@@ -244,8 +271,8 @@ export function TransitMapLayout() {
       })
       const shareUrl = buildShareableMapUrl(shareState)
 
-      window.history.replaceState(null, '', shareUrl)
       await navigator.clipboard.writeText(shareUrl)
+      window.history.replaceState(null, '', shareUrl)
       setShareMessage(text.shareCopied)
     } catch {
       setShareError(text.shareCopyFailed)

@@ -1,9 +1,14 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 
 import type { HubCanvasNode } from '../../lib/canvasGraph'
+import { interfaceText } from '../../lib/uiText'
 
 export function TransferHubNode({ data, selected }: NodeProps<HubCanvasNode>) {
-  const summary = data.constituentStopCount === 1 ? 'Single stop hub' : `${data.constituentStopCount} linked stops`
+  const text = interfaceText[data.language]
+  const summary =
+    data.constituentStopCount === 1
+      ? text.singleStopHub
+      : text.transferHubStops.replace('{count}', String(data.constituentStopCount))
 
   return (
     <div className="relative flex min-w-44 flex-col items-center gap-3 px-3 py-2">
@@ -27,8 +32,8 @@ export function TransferHubNode({ data, selected }: NodeProps<HubCanvasNode>) {
           {data.label}
         </p>
         <p className="mt-1 text-xs text-slate-300">{summary}</p>
-        {data.wheelchairStatus === 'accessible' ? <p className="mt-1 text-xs text-emerald-300">Wheelchair accessible</p> : null}
-        {data.wheelchairStatus === 'inaccessible' ? <p className="mt-1 text-xs text-rose-300">Wheelchair inaccessible</p> : null}
+        {data.wheelchairStatus === 'accessible' ? <p className="mt-1 text-xs text-emerald-300">{text.wheelchairAccessible}</p> : null}
+        {data.wheelchairStatus === 'inaccessible' ? <p className="mt-1 text-xs text-rose-300">{text.wheelchairInaccessible}</p> : null}
       </div>
     </div>
   )

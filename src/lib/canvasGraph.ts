@@ -56,6 +56,7 @@ export function buildTransitGraph(
         constituentStopCount: stop.constituent_stop_ids.length,
         direction,
         isTransferHub: stop.isTransferHub,
+        language: activeLanguage,
         wheelchairStatus: stop.wheelchairStatus,
         label: getStopLabel(route, stop.id, activeLanguage),
         operatorColor: route.operatorColor,

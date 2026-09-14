@@ -1,12 +1,15 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 
+import { interfaceText } from '../../lib/uiText'
 import type { TransitCanvasNode } from '../../lib/canvasGraph'
+import type { TransitLanguage } from '../../lib/gtfs'
 
 export type TransitStopNodeData = {
   code: string
   constituentStopCount: number
   direction: 'ltr' | 'rtl'
   isTransferHub: boolean
+  language: TransitLanguage
   wheelchairStatus: 'accessible' | 'inaccessible' | 'unknown'
   label: string
   operatorColor: string
@@ -14,6 +17,8 @@ export type TransitStopNodeData = {
 }
 
 export function TransitStopNode({ data, selected }: NodeProps<TransitCanvasNode>) {
+  const text = interfaceText[data.language]
+
   return (
     <div
       className={`min-w-44 rounded-2xl border px-4 py-3 shadow-lg transition ${
@@ -32,11 +37,9 @@ export function TransitStopNode({ data, selected }: NodeProps<TransitCanvasNode>
         <span className="mt-1 h-3.5 w-3.5 rounded-full border border-white/20" style={{ backgroundColor: data.operatorColor }} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{data.label}</p>
-          <p className="mt-1 text-xs text-slate-400">
-            {data.code || 'GTFS station'}
-          </p>
-          {data.wheelchairStatus === 'accessible' ? <p className="mt-1 text-xs text-emerald-300">Wheelchair accessible</p> : null}
-          {data.wheelchairStatus === 'inaccessible' ? <p className="mt-1 text-xs text-rose-300">Wheelchair inaccessible</p> : null}
+          <p className="mt-1 text-xs text-slate-400">{data.code || text.gtfsStationFallback}</p>
+          {data.wheelchairStatus === 'accessible' ? <p className="mt-1 text-xs text-emerald-300">{text.wheelchairAccessible}</p> : null}
+          {data.wheelchairStatus === 'inaccessible' ? <p className="mt-1 text-xs text-rose-300">{text.wheelchairInaccessible}</p> : null}
         </div>
       </div>
     </div>
