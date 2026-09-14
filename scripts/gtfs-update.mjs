@@ -265,7 +265,7 @@ function getTextDecoderSpec(encoding) {
 }
 
 function getCsvDelimiter(text, fileName) {
-  const headerLine = getHeaderLine(text)
+  const headerLine = getHeaderLine(stripLeadingBom(text))
 
   if (fileName === 'translations.txt' && headerLine.includes(';') && !headerLine.includes(',')) {
     return ';'
