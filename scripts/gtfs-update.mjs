@@ -667,11 +667,6 @@ async function parseExtractedFile(extractedFiles, fileName, { required = true } 
     throw error
   }
 
-  if (!required && fileName === 'translations.txt' && !isLikelyGtfsCsv(content, fileName)) {
-    handleOptionalFileError(fileName, new GtfsDecodeError(`Unable to decode ${fileName}. Tried: decoded text did not match GTFS CSV headers`))
-    return null
-  }
-
   return parseCsv(content, fileName)
 }
 
