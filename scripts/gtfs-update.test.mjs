@@ -104,7 +104,7 @@ test('stream parser supports multiline quoted stop_times rows', async () => {
   }
 })
 
-test('skips optional files when they cannot be parsed', async () => {
+test('skips optional translations when headers are unsupported', async () => {
   const tempDirectory = await mkdtemp(join(tmpdir(), 'gtfs-update-test-'))
 
   try {
@@ -117,13 +117,21 @@ test('skips optional files when they cannot be parsed', async () => {
 
     assert.equal(skippedTranslations, null)
 
+    const unsupportedHeaderPath = join(tempDirectory, 'translations-unsupported.txt')
+    await writeFile(unsupportedHeaderPath, 'some_field,another_field\nfoo,bar\n')
+
+    const unsupportedTranslations = await parseExtractedFile(new Map([['translations.txt', unsupportedHeaderPath]]), 'translations.txt', {
+      required: false,
+    })
+    assert.equal(unsupportedTranslations, null)
+
     const malformedTranslationsPath = join(tempDirectory, 'translations-malformed.txt')
     await writeFile(malformedTranslationsPath, 'table_name,field_name,language,translation,record_id\n"broken')
 
-    const malformedTranslations = await parseExtractedFile(new Map([['translations.txt', malformedTranslationsPath]]), 'translations.txt', {
-      required: false,
-    })
-    assert.equal(malformedTranslations, null)
+    await assert.rejects(
+      () => parseExtractedFile(new Map([['translations.txt', malformedTranslationsPath]]), 'translations.txt', { required: false }),
+      /Failed to parse translations\.txt/
+    )
   } finally {
     await rm(tempDirectory, { force: true, recursive: true })
   }

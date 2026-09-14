@@ -568,6 +568,41 @@ function projectStopTimeRow(row) {
   }
 }
 
+async function readFileSample(filePath, maximumBytes = 8192) {
+  return new Promise((resolve, reject) => {
+    const stream = createReadStream(filePath, { highWaterMark: maximumBytes })
+
+    stream.once('data', (chunk) => {
+      stream.destroy()
+      resolve(Buffer.from(chunk))
+    })
+
+    stream.once('end', () => resolve(Buffer.alloc(0)))
+    stream.once('error', (error) => reject(error))
+  })
+}
+
+async function isUtf8CompatibleStopTimesFile(filePath) {
+  const sample = await readFileSample(filePath)
+
+  if (sample.length === 0) {
+    return true
+  }
+
+  const preferredDecoders = getPreferredTextDecoders(sample)
+
+  if (preferredDecoders[0]?.encoding !== 'utf-8') {
+    return false
+  }
+
+  try {
+    new TextDecoder('utf-8', { fatal: true }).decode(sample, { stream: true })
+    return true
+  } catch {
+    return false
+  }
+}
+
 async function parseStopTimesInMemory(filePath) {
   const content = decodeGtfsText(await readFile(filePath), 'stop_times.txt')
   const delimiter = getCsvDelimiter(content, 'stop_times.txt')
@@ -588,6 +623,16 @@ async function forEachStopTimeRow(filePath, onRow) {
     return
   }
 
+  if (!(await isUtf8CompatibleStopTimesFile(filePath))) {
+    const stopTimes = await parseStopTimesInMemory(filePath)
+
+    for (const stopTime of stopTimes) {
+      onRow(stopTime)
+    }
+
+    return
+  }
+
   const stream = createReadStream(filePath, { encoding: 'utf8' })
   const csvStream = Papa.parse(Papa.NODE_STREAM_INPUT, {
     delimiter: '',
@@ -598,24 +643,56 @@ async function forEachStopTimeRow(filePath, onRow) {
   let headersValidated = false
 
   return new Promise((resolve, reject) => {
+    let settled = false
+    const fail = (error) => {
+      if (settled) {
+        return
+      }
+
+      settled = true
+      reject(error)
+    }
+    const validateHeaders = (headers) => {
+      if (headersValidated) {
+        return true
+      }
+
+      if (!matchesExpectedHeaders('stop_times.txt', headers)) {
+        fail(new Error('Failed to parse stop_times.txt: missing expected GTFS headers.'))
+        stream.destroy()
+        return false
+      }
+
+      headersValidated = true
+      return true
+    }
+
+    csvStream.on('headers', (headers) => {
+      validateHeaders(headers.map((header) => stripLeadingBom(String(header).trim())))
+    })
+
     csvStream.on('data', (row) => {
-      if (!headersValidated) {
-        const headers = Object.keys(row)
-
-        if (!matchesExpectedHeaders('stop_times.txt', headers)) {
-          reject(new Error('Failed to parse stop_times.txt: missing expected GTFS headers.'))
-          stream.destroy()
-          return
-        }
-
-        headersValidated = true
+      if (!validateHeaders(Object.keys(row))) {
+        return
       }
 
       onRow(projectStopTimeRow(row))
     })
 
-    csvStream.on('error', (error) => reject(new Error(`Failed to parse stop_times.txt: ${error.message}`)))
-    csvStream.on('finish', () => resolve())
+    csvStream.on('error', (error) => fail(new Error(`Failed to parse stop_times.txt: ${error.message}`)))
+    csvStream.on('finish', () => {
+      if (!headersValidated) {
+        fail(new Error('Failed to parse stop_times.txt: missing expected GTFS headers.'))
+        return
+      }
+
+      if (settled) {
+        return
+      }
+
+      settled = true
+      resolve()
+    })
 
     stream.pipe(csvStream)
   })
@@ -910,6 +987,15 @@ function handleOptionalFileError(fileName, error) {
   console.warn(`Skipping optional ${fileName}: ${error instanceof Error ? error.message : error}`)
 }
 
+function isDecodeFailure(error) {
+  return Boolean(
+    error &&
+      typeof error === 'object' &&
+      ('name' in error || 'code' in error) &&
+      ((error instanceof GtfsDecodeError) || error.name === 'GtfsDecodeError' || error.code === 'GTFS_DECODE_ERROR')
+  )
+}
+
 async function parseExtractedFile(extractedFiles, fileName, { required = true } = {}) {
   const filePath = extractedFiles.get(fileName)
 
@@ -928,10 +1014,20 @@ async function parseExtractedFile(extractedFiles, fileName, { required = true } 
 
     const content = decodeGtfsText(await readFile(filePath), fileName)
     const delimiter = getCsvDelimiter(content, fileName)
+
+    if (!required && fileName === 'translations.txt') {
+      const headerColumns = parseCsvHeaderColumnsWithDelimiter(content, delimiter)
+
+      if (!matchesExpectedHeaders(fileName, headerColumns)) {
+        handleOptionalFileError(fileName, new Error(`Failed to parse ${fileName}: missing expected GTFS headers.`))
+        return null
+      }
+    }
+
     validateParsedGtfsHeaders(fileName, content, delimiter)
     return parseCsv(content, fileName, delimiter)
   } catch (error) {
-    if (!required) {
+    if (!required && isDecodeFailure(error)) {
       handleOptionalFileError(fileName, error)
       return null
     }
