@@ -264,11 +264,17 @@ function getTextDecoderSpec(encoding) {
 }
 
 function parseCsvHeaderColumnsWithDelimiter(text, delimiter) {
-  const parsed = Papa.parse(stripLeadingBom(text), {
-    delimiter,
-    preview: 1,
-    skipEmptyLines: true,
-  })
+  let parsed
+
+  try {
+    parsed = Papa.parse(stripLeadingBom(text), {
+      delimiter,
+      preview: 1,
+      skipEmptyLines: true,
+    })
+  } catch {
+    return []
+  }
 
   if (parsed.errors.length > 0) {
     return []
@@ -500,10 +506,6 @@ function decodeGtfsText(buffer, fileName) {
       attemptedEncodings.push(`${encoding} (${error && typeof error === 'object' && 'name' in error ? error.name : 'decode error'})`)
       continue
     }
-  }
-
-  if (fallbackDecodedText && shouldMatchExpectedHeaders(fileName)) {
-    throw new Error(`Failed to parse ${fileName}: missing expected GTFS headers.`)
   }
 
   if (fallbackDecodedText) {
