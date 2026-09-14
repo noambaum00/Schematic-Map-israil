@@ -73,6 +73,7 @@ export function TransitMapLayout() {
     () => allRoutes.find((route) => route.id === selectedRouteId) ?? null,
     [allRoutes, selectedRouteId],
   )
+  const routeNodeCount = selectedRoute?.stops.length ?? 0
 
   const baseGraph = useMemo(() => buildTransitGraph(selectedRoute, language), [language, selectedRoute])
 
@@ -126,7 +127,7 @@ export function TransitMapLayout() {
   }, [shareError, shareMessage])
 
   useEffect(() => {
-    if (!reactFlowInstance || baseGraph.nodes.length === 0) {
+    if (!reactFlowInstance || routeNodeCount === 0) {
       return
     }
 
@@ -134,7 +135,7 @@ export function TransitMapLayout() {
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
       await reactFlowInstance.fitView({ duration: 250, includeHiddenNodes: true, padding: 0.18 })
     })()
-  }, [baseGraph.nodes.length, reactFlowInstance, selectedRouteId])
+  }, [reactFlowInstance, routeNodeCount, selectedRouteId])
 
   function resetCanvasState() {
     setPoiNodes([])

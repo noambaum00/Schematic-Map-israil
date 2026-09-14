@@ -158,7 +158,7 @@ function CanvasInner({
 
         <div className="grid gap-4">
           <article className="rounded-[1.75rem] border border-white/10 bg-slate-950/60 p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">Route metadata</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">{activeText.routeMetadata}</p>
             {!route ? (
               <>
                 <p className="mt-4 text-sm font-semibold text-white">{isLoading ? 'Parsing GTFS archive…' : emptyStates[activeLanguage].title}</p>
@@ -168,12 +168,12 @@ function CanvasInner({
               </>
             ) : (
               <ul className="mt-4 space-y-3 text-sm text-slate-300">
-                <li>• Mode: {route.mode}</li>
-                <li>• Operator: {route.operator}</li>
-                <li>• Trip ID: {route.representativeTripId}</li>
-                <li>• Headsign: {route.representativeHeadsign || 'Not provided'}</li>
-                <li>• Wheelchair-accessible stops: {route.stops.filter((stop) => stop.wheelchairStatus === 'accessible').length}</li>
-                <li>• Wheelchair-inaccessible stops: {route.stops.filter((stop) => stop.wheelchairStatus === 'inaccessible').length}</li>
+                <li>• {activeText.routeMode}: {route.mode}</li>
+                <li>• {activeText.routeOperator}: {route.operator}</li>
+                <li>• {activeText.tripId}: {route.representativeTripId}</li>
+                <li>• {activeText.headsign}: {route.representativeHeadsign || 'Not provided'}</li>
+                <li>• {activeText.wheelchairAccessibleStops}: {route.stops.filter((stop) => stop.wheelchairStatus === 'accessible').length}</li>
+                <li>• {activeText.wheelchairInaccessibleStops}: {route.stops.filter((stop) => stop.wheelchairStatus === 'inaccessible').length}</li>
               </ul>
             )}
           </article>
