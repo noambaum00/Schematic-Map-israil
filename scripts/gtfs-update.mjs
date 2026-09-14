@@ -392,7 +392,7 @@ function decodeGtfsText(buffer, fileName) {
       fallbackDecodedText ??= decoded
       attemptedEncodings.push(`${encoding} (decoded text headers did not match ${fileName})`)
     } catch (error) {
-      attemptedEncodings.push(`${encoding} (${error instanceof Error ? error.message : 'unknown decode error'})`)
+      attemptedEncodings.push(`${encoding} (${error && typeof error === 'object' && 'name' in error ? error.name : 'decode error'})`)
       continue
     }
   }
