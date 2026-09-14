@@ -1,4 +1,5 @@
 import type { TransitLanguage } from './gtfs'
+import type { FrequencyTier } from '../data/transitPlan'
 
 export function isRtlLanguage(language: TransitLanguage) {
   return language !== 'English'
@@ -12,9 +13,15 @@ export function getTextAlignment(language: TransitLanguage): 'left' | 'right' {
   return isRtlLanguage(language) ? 'right' : 'left'
 }
 
+type InterfaceCopy = {
+  [key: string]: string | Record<FrequencyTier, string>
+  frequencyTierLabels: Record<FrequencyTier, string>
+}
+
 export const interfaceText = {
   English: {
     activeLanguage: 'Active language',
+    activeLegendBadge: 'Active',
     addPoi: 'Add POI to canvas center',
     architecture: 'Architecture',
     canvasRegionDescription:
@@ -26,11 +33,18 @@ export const interfaceText = {
     exportDescription: 'Temporarily fits the full graph into view before exporting the `.react-flow` canvas as SVG.',
     exportSvg: 'Export SVG',
     exportingSvg: 'Exporting SVG…',
+    frequencyLegend: 'Frequency tiers',
+    frequencyTierLabels: {
+      HIGH_FREQUENCY: 'High frequency',
+      LOW_FREQUENCY: 'Low frequency',
+      MEDIUM_FREQUENCY: 'Medium frequency',
+    },
     gtfsStationFallback: 'GTFS station',
     gtfsSource: 'GTFS source',
     headsign: 'Headsign',
     interactiveWorkspace: 'Interactive schematic workspace',
     language: 'Language',
+    legendTitle: 'Legend',
     loadedFeedNotice: 'Loaded {fileName} · {routes} routes · {trips} trips · {stops} stops · {hubs} hubs',
     loadFeedToBrowse: 'Load a feed to browse routes.',
     loadFeedToRestoreSharedMap: 'Shared map found. Upload the matching GTFS zip to restore the saved layout.',
@@ -38,8 +52,9 @@ export const interfaceText = {
     noRoutesMatch: 'No routes match the current search.',
     nodeLabelsDescription: 'Canvas labels switch between RTL and LTR reading order without resetting node positions.',
     notProvided: 'Not provided',
+    operatorLegend: 'Operator color',
     parsingGtfs: 'Parsing GTFS archive…',
-    phase: 'Phase 6',
+    phase: 'Phase 7',
     poiDescription: 'Create a POI, click it on the canvas, then edit its label here.',
     poiNodes: 'POI nodes',
     readingArchive: 'Reading routes, trips, stop_times, stops, and translations from the uploaded archive.',
@@ -62,6 +77,7 @@ export const interfaceText = {
     tripId: 'Trip ID',
     uploadGtfs: 'Upload an official Israel MOT GTFS zip archive',
     vectorSvg: 'SVG',
+    visibleRouteTrips: '{count} trips in the loaded feed',
     wheelchairAccessible: 'Wheelchair accessible',
     wheelchairInaccessible: 'Wheelchair inaccessible',
     wheelchairAccessibleStops: 'Wheelchair-accessible stops',
@@ -69,6 +85,7 @@ export const interfaceText = {
   },
   'עברית': {
     activeLanguage: 'שפה פעילה',
+    activeLegendBadge: 'פעיל',
     addPoi: 'הוספת נקודת עניין למרכז הקנבס',
     architecture: 'ארכיטקטורה',
     canvasRegionDescription:
@@ -80,11 +97,18 @@ export const interfaceText = {
     exportDescription: 'הגרף כולו מותאם זמנית למסך לפני ייצוא קנבס `.react-flow` כ־SVG.',
     exportSvg: 'ייצוא SVG',
     exportingSvg: 'מייצא SVG…',
+    frequencyLegend: 'רמות תדירות',
+    frequencyTierLabels: {
+      HIGH_FREQUENCY: 'תדירות גבוהה',
+      LOW_FREQUENCY: 'תדירות נמוכה',
+      MEDIUM_FREQUENCY: 'תדירות בינונית',
+    },
     gtfsStationFallback: 'תחנת GTFS',
     gtfsSource: 'מקור GTFS',
     headsign: 'יעד',
     interactiveWorkspace: 'סביבת עבודה סכמטית אינטראקטיבית',
     language: 'שפה',
+    legendTitle: 'מקרא',
     loadedFeedNotice: 'נטען {fileName} · ‏{routes} קווים · ‏{trips} נסיעות · ‏{stops} תחנות · ‏{hubs} מוקדים',
     loadFeedToBrowse: 'טענו פיד כדי לעיין בקווים.',
     loadFeedToRestoreSharedMap: 'נמצאה מפה משותפת. העלו את קובץ ה‑GTFS המתאים כדי לשחזר את הפריסה השמורה.',
@@ -92,8 +116,9 @@ export const interfaceText = {
     noRoutesMatch: 'אין קווים התואמים לחיפוש הנוכחי.',
     nodeLabelsDescription: 'תוויות הקנבס עוברות בין RTL ל‑LTR בלי לאפס את מיקומי הצמתים.',
     notProvided: 'לא סופק',
+    operatorLegend: 'צבע מפעיל',
     parsingGtfs: 'מנתח ארכיון GTFS…',
-    phase: 'שלב 6',
+    phase: 'שלב 7',
     poiDescription: 'צרו נקודת עניין, לחצו עליה בקנבס ואז ערכו את התווית כאן.',
     poiNodes: 'נקודות עניין',
     readingArchive: 'קורא routes, trips, stop_times, stops ו‑translations מתוך הארכיון שהועלה.',
@@ -116,6 +141,7 @@ export const interfaceText = {
     tripId: 'מזהה נסיעה',
     uploadGtfs: 'העלו קובץ ZIP רשמי של GTFS ממשרד התחבורה',
     vectorSvg: 'SVG',
+    visibleRouteTrips: '{count} נסיעות בפיד שנטען',
     wheelchairAccessible: 'גישה לכיסא גלגלים',
     wheelchairInaccessible: 'ללא גישה לכיסא גלגלים',
     wheelchairAccessibleStops: 'תחנות נגישות לכיסא גלגלים',
@@ -123,6 +149,7 @@ export const interfaceText = {
   },
   'العربية': {
     activeLanguage: 'اللغة النشطة',
+    activeLegendBadge: 'نشط',
     addPoi: 'إضافة نقطة اهتمام إلى وسط اللوحة',
     architecture: 'البنية',
     canvasRegionDescription:
@@ -134,11 +161,18 @@ export const interfaceText = {
     exportDescription: 'يتم احتواء المخطط كاملًا مؤقتًا قبل تصدير لوحة `.react-flow` كملف SVG.',
     exportSvg: 'تصدير SVG',
     exportingSvg: 'جارٍ تصدير SVG…',
+    frequencyLegend: 'مستويات التردد',
+    frequencyTierLabels: {
+      HIGH_FREQUENCY: 'تردد مرتفع',
+      LOW_FREQUENCY: 'تردد منخفض',
+      MEDIUM_FREQUENCY: 'تردد متوسط',
+    },
     gtfsStationFallback: 'محطة GTFS',
     gtfsSource: 'مصدر GTFS',
     headsign: 'الوجهة',
     interactiveWorkspace: 'مساحة عمل تخطيطية تفاعلية',
     language: 'اللغة',
+    legendTitle: 'المفتاح',
     loadedFeedNotice: 'تم تحميل {fileName} · {routes} خطوط · {trips} رحلات · {stops} محطات · {hubs} مراكز',
     loadFeedToBrowse: 'حمّل تغذية للتصفح بين الخطوط.',
     loadFeedToRestoreSharedMap: 'تم العثور على خريطة مشتركة. حمّل ملف GTFS المطابق لاستعادة التخطيط المحفوظ.',
@@ -146,8 +180,9 @@ export const interfaceText = {
     noRoutesMatch: 'لا توجد خطوط تطابق البحث الحالي.',
     nodeLabelsDescription: 'تبدّل تسميات اللوحة بين اتجاهي RTL وLTR بدون إعادة تعيين مواقع العقد.',
     notProvided: 'غير متوفر',
+    operatorLegend: 'لون المشغّل',
     parsingGtfs: 'جارٍ تحليل أرشيف GTFS…',
-    phase: 'المرحلة 6',
+    phase: 'المرحلة 7',
     poiDescription: 'أنشئ نقطة اهتمام، ثم اضغط عليها في اللوحة وعدّل تسميتها هنا.',
     poiNodes: 'نقاط الاهتمام',
     readingArchive: 'تتم قراءة routes وtrips وstop_times وstops وtranslations من الأرشيف المرفوع.',
@@ -170,9 +205,10 @@ export const interfaceText = {
     tripId: 'معرّف الرحلة',
     uploadGtfs: 'حمّل ملف GTFS رسمي بصيغة ZIP من وزارة المواصلات',
     vectorSvg: 'SVG',
+    visibleRouteTrips: '{count} رحلة في التغذية المحمّلة',
     wheelchairAccessible: 'إمكانية وصول بالكراسي المتحركة',
     wheelchairInaccessible: 'غير متاح للكراسي المتحركة',
     wheelchairAccessibleStops: 'محطات متاحة للكراسي المتحركة',
     wheelchairInaccessibleStops: 'محطات غير متاحة للكراسي المتحركة',
   },
-} satisfies Record<TransitLanguage, Record<string, string>>
+} satisfies Record<TransitLanguage, InterfaceCopy>

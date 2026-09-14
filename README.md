@@ -2,9 +2,9 @@
 
 A Vite + React + TypeScript app for generating schematic transit views for Israel's public transportation network.
 
-## Phase 6 status
+## Phase 7 status
 
-This phase adds shareable URL state, GitHub Pages-safe restoration, and multilingual hub/station labels on top of the schematic React Flow canvas.
+This phase adds dynamic operator styling and frequency-based rendering on top of the existing shareable, multilingual schematic React Flow canvas.
 
 ### Implemented now
 - upload and parse a real Israel MOT GTFS zip archive in the browser
@@ -24,6 +24,10 @@ This phase adds shareable URL state, GitHub Pages-safe restoration, and multilin
 - switch stop and hub labels dynamically between English, Hebrew, and Arabic without resetting manual node positions
 - apply RTL/LTR document direction dynamically when Hebrew or Arabic is selected
 - snap node dragging to a `20 x 20` grid for cleaner manual schematic adjustments
+- map visible routes to official operator colors such as Israel Railways blue, Dankal red, Egged green, Dan orange, and Kavim light blue
+- classify routes into high, medium, and low frequency tiers by counting GTFS trips per route in the loaded feed
+- render high-frequency lines thicker and low-frequency lines with lighter dashed strokes
+- display a floating legend that explains the active operator color and frequency styling
 - use the included Vite base-path configuration and GitHub Actions workflow for GitHub Pages publishing on pushes to `main`
 
 ## New npm dependencies
@@ -84,3 +88,5 @@ Before exporting, the app temporarily calls React Flow fit-to-view behavior so t
 - clustered transfer hubs render as prominent interchange markers with external labels
 - route edges use a custom octilinear SVG path generator
 - manual node dragging snaps to a `20 x 20` canvas grid
+- route strokes inherit operator-specific colors from GTFS agency matching
+- route trip counts are bucketed into `HIGH_FREQUENCY`, `MEDIUM_FREQUENCY`, and `LOW_FREQUENCY` tiers

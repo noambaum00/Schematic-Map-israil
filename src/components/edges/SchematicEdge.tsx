@@ -4,6 +4,7 @@ import type { CanvasEdge } from '../../lib/canvasGraph'
 import { buildSchematicPath } from '../../lib/schematicPath'
 
 export function SchematicEdge({
+  data,
   id,
   label,
   markerEnd,
@@ -15,6 +16,7 @@ export function SchematicEdge({
   targetY,
 }: EdgeProps<CanvasEdge>) {
   const { labelX, labelY, path } = buildSchematicPath(sourceX, sourceY, targetX, targetY)
+  const isManual = data?.isManual
 
   return (
     <>
@@ -34,7 +36,9 @@ export function SchematicEdge({
             className={`pointer-events-none absolute rounded-full border px-3 py-1 text-xs font-semibold tracking-[0.24em] uppercase ${
               selected
                 ? 'border-cyan-300 bg-slate-900 text-cyan-100'
-                : 'border-slate-700 bg-slate-950/95 text-slate-200'
+                : isManual
+                  ? 'border-slate-500 bg-slate-950/95 text-slate-100'
+                  : 'border-slate-700 bg-slate-950/95 text-slate-200'
             }`}
             style={{
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,

@@ -2,7 +2,7 @@ import JSZip from 'jszip'
 import Papa from 'papaparse'
 import { z } from 'zod'
 
-import { getOperatorColor } from '../data/transitPlan'
+import { classifyFrequencyTier, type FrequencyTier, getOperatorColor } from '../data/transitPlan'
 import { clusterStopsIntoTransferHubs, type RawStopForHubClustering } from './gtfsPreprocessor'
 
 const agencySchema = z.object({
@@ -88,9 +88,11 @@ export type ParsedRoute = {
   id: string
   label: string
   description: string
+  frequencyTier: FrequencyTier
   mode: TransitMode
   operator: string
   operatorColor: string
+  tripCount: number
   trainTemplates: string[]
   trainTemplateLabel: string | null
   representativeTripId: string
@@ -351,6 +353,8 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
       }
 
       const trainTemplates = getMode(route.route_type) === 'rail' ? extractTrainTemplates(route, routeTrips) : []
+      const tripCount = routeTrips.length
+
       const remappedStopIds = representativeStopIds
         .map((stopId) => clusteredStops.stopToHubMap[stopId] ?? stopId)
         .filter((stopId, index, allStopIds) => index === 0 || stopId !== allStopIds[index - 1])
@@ -386,12 +390,14 @@ export async function parseGtfsArchive(file: File): Promise<ParsedFeed> {
         id: route.route_id,
         label: buildRouteLabel(route),
         description: route.route_desc || representativeTrip.trip_headsign,
+        frequencyTier: classifyFrequencyTier(tripCount),
         mode: getMode(route.route_type),
         operator,
         operatorColor: getOperatorColor(operator),
         representativeHeadsign: representativeTrip.trip_headsign,
         representativeTripId: representativeTrip.trip_id,
         stops: uniqueStops,
+        tripCount,
         trainTemplateLabel: trainTemplates.length > 0 ? trainTemplates.join(' / ') : null,
         trainTemplates,
       } satisfies ParsedRoute

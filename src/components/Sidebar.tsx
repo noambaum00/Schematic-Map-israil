@@ -153,6 +153,7 @@ export function Sidebar({
                 <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-300">
                   <span className="rounded-full border border-white/10 px-2 py-1">{route.mode}</span>
                   <span className="rounded-full border border-white/10 px-2 py-1">{route.stops.length} stops</span>
+                  <span className="rounded-full border border-white/10 px-2 py-1">{route.tripCount} trips</span>
                   {route.trainTemplateLabel ? (
                     <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2 py-1 text-cyan-100">
                       {route.trainTemplateLabel}

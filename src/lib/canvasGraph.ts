@@ -1,5 +1,6 @@
 import { addEdge, Position, type Connection, type Edge, type Node } from '@xyflow/react'
 
+import { getFrequencyStrokeStyle } from '../data/transitPlan'
 import type { ParsedRoute, TransitLanguage } from './gtfs'
 import { buildSchematicPath } from './schematicPath'
 import type { POINodeData } from '../components/nodes/POINode'
@@ -9,7 +10,11 @@ export type TransitCanvasNode = Node<TransitStopNodeData, 'transit'>
 export type HubCanvasNode = Node<TransitStopNodeData, 'hub'>
 export type POICanvasNode = Node<POINodeData, 'poi'>
 export type CanvasNode = TransitCanvasNode | HubCanvasNode | POICanvasNode
-export type CanvasEdge = Edge
+export type CanvasEdge = Edge<{
+  frequencyTier?: ParsedRoute['frequencyTier']
+  isManual?: boolean
+  operatorColor?: string
+}, 'schematic'>
 
 function buildUndirectedConnectionKey(source: string, target: string) {
   return [source, target].sort().join('<->')
@@ -103,12 +108,19 @@ export function buildTransitGraph(
     }
   }
 
-  const edges = edgeDescriptors.map<CanvasEdge>(({ id, source, stop, target }) => ({
+  const edges = edgeDescriptors.map<CanvasEdge>(({ id, source, target }) => ({
+    data: {
+      frequencyTier: route.frequencyTier,
+      operatorColor: route.operatorColor,
+    },
     animated: false,
     id,
     label: labeledEdgeId === id ? route.trainTemplateLabel ?? undefined : undefined,
     source,
-    style: { stroke: route.operatorColor, strokeWidth: stop.isTransferHub || nodeById.get(source)?.data.isTransferHub ? 6 : 5 },
+    style: {
+      stroke: route.operatorColor,
+      ...getFrequencyStrokeStyle(route.frequencyTier),
+    },
     target,
     type: 'schematic',
   }))
@@ -147,6 +159,9 @@ export function connectCanvasEdge(connection: Connection, currentEdges: CanvasEd
   return addEdge(
     {
       ...connection,
+      data: {
+        isManual: true,
+      },
       id: `manual-edge-${source}-${target}-${currentEdges.length + 1}`,
       style: { stroke: '#f8fafc', strokeDasharray: '10 6', strokeWidth: 3 },
       type: 'schematic',

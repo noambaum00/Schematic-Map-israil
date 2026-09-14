@@ -17,6 +17,7 @@ import { useMemo } from 'react'
 import type { CanvasEdge, CanvasNode } from '../lib/canvasGraph'
 import type { ParsedRoute, TransitLanguage } from '../lib/gtfs'
 import { getDirection, interfaceText, isRtlLanguage } from '../lib/uiText'
+import { Legend } from './Legend'
 import { SchematicEdge } from './edges/SchematicEdge'
 import { POINode } from './nodes/POINode'
 import { TransferHubNode } from './nodes/TransferHubNode'
@@ -153,6 +154,7 @@ function CanvasInner({
               />
               <Controls className="!rounded-2xl !border !border-white/10 !bg-slate-950/90 !shadow-xl" showInteractive={false} />
             </ReactFlow>
+            <Legend activeLanguage={activeLanguage} route={route} />
           </div>
         </div>
 

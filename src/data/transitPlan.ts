@@ -15,6 +15,8 @@ export type PackageGroup = {
   packages: string[]
 }
 
+export type FrequencyTier = 'HIGH_FREQUENCY' | 'MEDIUM_FREQUENCY' | 'LOW_FREQUENCY'
+
 export type AlgorithmPlan = {
   title: string
   goal: string
@@ -24,18 +26,28 @@ export type AlgorithmPlan = {
 export const operatorColors: OperatorColor[] = [
   {
     name: 'Israel Railways',
-    hex: '#2457C5',
+    hex: '#0033A0',
     note: 'Heavy rail trunk and suburban corridors.',
   },
   {
     name: 'Dankal / NTA',
-    hex: '#D63B3B',
+    hex: '#E31837',
     note: 'Light rail corridors and urban rapid transit.',
   },
   {
     name: 'Egged',
-    hex: '#1B8E5A',
+    hex: '#007A33',
     note: 'Regional and intercity bus families.',
+  },
+  {
+    name: 'Dan',
+    hex: '#FF7900',
+    note: 'Gush Dan urban and metropolitan bus services.',
+  },
+  {
+    name: 'Kavim',
+    hex: '#00AEEF',
+    note: 'Urban and regional bus corridors.',
   },
 ]
 
@@ -47,6 +59,7 @@ export const architectureSections: ArchitectureSection[] = [
       'Parse agency, routes, trips, stop_times, stops, and optional translations from the uploaded MOT GTFS archive.',
       'Validate required columns with Zod before building route summaries and stop sequences.',
       'Keep the feed ephemeral in client state so GitHub Pages can host the app without a backend.',
+      'Derive official operator colors and rough trip-count frequency tiers directly from GTFS agencies and routes.',
     ],
   },
   {
@@ -55,6 +68,7 @@ export const architectureSections: ArchitectureSection[] = [
     bullets: [
       'Map GTFS stops into regular station nodes and clustered transfer hub nodes with distinct styling.',
       'Render route segments as octilinear React Flow edges that keep to horizontal, vertical, and 45° diagonals.',
+      'Style visible lines with operator-specific colors and thickness tiers that reflect route frequency.',
       'Register a distinct POI node type so user-authored landmarks can be styled and edited independently.',
       'Support grid-snapped drag, manual connect, selection, and export interactions directly on the graph canvas.',
     ],
@@ -128,6 +142,15 @@ export const algorithmPlans: AlgorithmPlan[] = [
     ],
   },
   {
+    title: 'Operator styling + frequency tiers',
+    goal: 'Match visible route styling to official operators and rough service levels from GTFS data.',
+    steps: [
+      'Resolve each route to its GTFS agency and map that operator to a recognizable hex color.',
+      'Count route trips over the loaded feed and classify them into high, medium, or low frequency tiers.',
+      'Use the resulting operator color and frequency tier in both line rendering and the floating legend.',
+    ],
+  },
+  {
     title: 'Octilinear schematic routing',
     goal: 'Keep rendered route geometry aligned to classic transit-map angles while preserving train labels.',
     steps: [
@@ -141,16 +164,24 @@ export const algorithmPlans: AlgorithmPlan[] = [
 export function getOperatorColor(operatorName: string) {
   const normalizedName = operatorName.toLowerCase()
 
-  if (normalizedName.includes('rail')) {
-    return '#2457C5'
+  if (normalizedName.includes('israel rail') || normalizedName.includes('railways') || normalizedName.includes('רכבת')) {
+    return '#0033A0'
   }
 
-  if (normalizedName.includes('dankal') || normalizedName.includes('nta') || normalizedName.includes('light rail')) {
-    return '#D63B3B'
+  if (normalizedName.includes('dankal') || normalizedName.includes('נת"ע') || normalizedName.includes('nta') || normalizedName.includes('light rail')) {
+    return '#E31837'
   }
 
   if (normalizedName.includes('egged')) {
-    return '#1B8E5A'
+    return '#007A33'
+  }
+
+  if (normalizedName.includes('דן') || normalizedName.includes(' dan ') || normalizedName.startsWith('dan')) {
+    return '#FF7900'
+  }
+
+  if (normalizedName.includes('kavim') || normalizedName.includes('קווים')) {
+    return '#00AEEF'
   }
 
   if (normalizedName.includes('bus')) {
@@ -158,4 +189,28 @@ export function getOperatorColor(operatorName: string) {
   }
 
   return '#38BDF8'
+}
+
+export function classifyFrequencyTier(tripCount: number): FrequencyTier {
+  if (tripCount >= 120) {
+    return 'HIGH_FREQUENCY'
+  }
+
+  if (tripCount >= 40) {
+    return 'MEDIUM_FREQUENCY'
+  }
+
+  return 'LOW_FREQUENCY'
+}
+
+export function getFrequencyStrokeStyle(frequencyTier: FrequencyTier) {
+  if (frequencyTier === 'HIGH_FREQUENCY') {
+    return { strokeDasharray: undefined, strokeWidth: 6 }
+  }
+
+  if (frequencyTier === 'MEDIUM_FREQUENCY') {
+    return { strokeDasharray: undefined, strokeWidth: 4 }
+  }
+
+  return { strokeDasharray: '10 8', strokeWidth: 2 }
 }
