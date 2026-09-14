@@ -1,3 +1,5 @@
+import type { ReactElement } from 'react'
+
 import type { ParsedFeed, ParsedRoute, TransitLanguage } from '../lib/gtfs'
 import type { CanvasEdge, EdgeRoutingStyle } from '../lib/canvasGraph'
 import { interfaceText } from '../lib/uiText'
@@ -88,7 +90,7 @@ function ActionButton({
   onClick,
 }: {
   disabled?: boolean
-  icon: JSX.Element
+  icon: ReactElement
   label: string
   onClick: () => void
 }) {
@@ -105,7 +107,7 @@ function ActionButton({
   )
 }
 
-function SectionTitle({ icon, title }: { icon: JSX.Element; title: string }) {
+function SectionTitle({ icon, title }: { icon: ReactElement; title: string }) {
   return (
     <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
       <span className="flex h-8 w-8 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">{icon}</span>
