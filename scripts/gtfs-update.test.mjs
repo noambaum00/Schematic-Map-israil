@@ -65,7 +65,7 @@ test('streams stop_times parsing and keeps required fields', async () => {
   }
 })
 
-test('skips optional files only when decoding fails', async () => {
+test('skips optional files when they cannot be parsed', async () => {
   const tempDirectory = await mkdtemp(join(tmpdir(), 'gtfs-update-test-'))
 
   try {
@@ -81,10 +81,10 @@ test('skips optional files only when decoding fails', async () => {
     const malformedTranslationsPath = join(tempDirectory, 'translations-malformed.txt')
     await writeFile(malformedTranslationsPath, 'table_name,field_name,language,translation,record_id\n"broken')
 
-    await assert.rejects(
-      () => parseExtractedFile(new Map([['translations.txt', malformedTranslationsPath]]), 'translations.txt', { required: false }),
-      /Failed to parse translations\.txt/
-    )
+    const malformedTranslations = await parseExtractedFile(new Map([['translations.txt', malformedTranslationsPath]]), 'translations.txt', {
+      required: false,
+    })
+    assert.equal(malformedTranslations, null)
   } finally {
     await rm(tempDirectory, { force: true, recursive: true })
   }

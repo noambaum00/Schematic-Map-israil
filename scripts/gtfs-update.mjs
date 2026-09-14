@@ -860,15 +860,6 @@ function handleOptionalFileError(fileName, error) {
   console.warn(`Skipping optional ${fileName}: ${error instanceof Error ? error.message : error}`)
 }
 
-function isDecodeFailure(error) {
-  return Boolean(
-    error &&
-      typeof error === 'object' &&
-      ('name' in error || 'code' in error) &&
-      ((error instanceof GtfsDecodeError) || error.name === 'GtfsDecodeError' || error.code === 'GTFS_DECODE_ERROR')
-  )
-}
-
 async function parseExtractedFile(extractedFiles, fileName, { required = true } = {}) {
   const filePath = extractedFiles.get(fileName)
 
@@ -880,26 +871,23 @@ async function parseExtractedFile(extractedFiles, fileName, { required = true } 
     return null
   }
 
-  let content
-
-  if (fileName === 'stop_times.txt') {
-    return parseStopTimesStream(filePath)
-  }
-
   try {
-    content = decodeGtfsText(await readFile(filePath), fileName)
+    if (fileName === 'stop_times.txt') {
+      return await parseStopTimesStream(filePath)
+    }
+
+    const content = decodeGtfsText(await readFile(filePath), fileName)
+    const delimiter = getCsvDelimiter(content, fileName)
+    validateParsedGtfsHeaders(fileName, content, delimiter)
+    return parseCsv(content, fileName, delimiter)
   } catch (error) {
-    if (!required && isDecodeFailure(error)) {
+    if (!required) {
       handleOptionalFileError(fileName, error)
       return null
     }
 
     throw error
   }
-
-  const delimiter = getCsvDelimiter(content, fileName)
-  validateParsedGtfsHeaders(fileName, content, delimiter)
-  return parseCsv(content, fileName, delimiter)
 }
 
 async function buildTransitGraphPayload(extractedFiles) {
