@@ -601,6 +601,10 @@ async function parseExtractedFile(extractedFiles, fileName, { required = true } 
   const filePath = extractedFiles.get(fileName)
 
   if (!filePath) {
+    if (required) {
+      throw new Error(`Missing ${fileName} in the extracted GTFS archive.`)
+    }
+
     return null
   }
 
