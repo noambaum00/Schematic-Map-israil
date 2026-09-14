@@ -175,9 +175,9 @@ export function TransitMapLayout() {
         const selectedRoute = parsedFeed.routes.find((route) => route.id === nextSelectedRouteId)
         const restoredPoiNodes: POICanvasNode[] = sharedState.poiNodes.map((node) => ({
           data: {
-            direction: getDirection(sharedState.language),
+            direction: getDirection(language),
             label: node.label,
-            textAlign: getTextAlignment(sharedState.language),
+            textAlign: getTextAlignment(language),
           },
           id: node.id,
           position: { x: node.x, y: node.y },

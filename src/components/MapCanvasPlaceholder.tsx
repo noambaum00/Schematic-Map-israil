@@ -101,14 +101,14 @@ function CanvasInner({
 
       <div className="relative z-10 flex items-center justify-between gap-4 border-b border-white/10 px-6 py-5">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">React Flow canvas</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">{activeText.reactFlowCanvas}</p>
           <h2 className="mt-2 text-2xl font-semibold text-white">{activeText.interactiveWorkspace}</h2>
         </div>
         <div className="flex flex-wrap gap-2 text-xs text-slate-200">
-          <span className="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5">Real GTFS feed</span>
-          <span className="rounded-full border border-violet-400/40 bg-violet-400/10 px-3 py-1.5">Transfer hubs</span>
-          <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1.5">POI nodes</span>
-          <span className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1.5">SVG export</span>
+          <span className="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5">{activeText.canvasBadgeFeed}</span>
+          <span className="rounded-full border border-violet-400/40 bg-violet-400/10 px-3 py-1.5">{activeText.canvasBadgeHubs}</span>
+          <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1.5">{activeText.canvasBadgePoi}</span>
+          <span className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1.5">{activeText.canvasBadgeExport}</span>
         </div>
       </div>
 
@@ -116,7 +116,7 @@ function CanvasInner({
         <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/70">
           <div
             ref={wrapperRef}
-            aria-label="Interactive transit map canvas"
+            aria-label={activeText.canvasRegionLabel}
             aria-describedby="canvas-region-description"
             className="h-[720px] w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300"
             role="region"

@@ -108,7 +108,7 @@ export function Sidebar({
       <section className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-white">{text.searchAndSelection}</h2>
-          <span className="rounded-full bg-cyan-400/10 px-3 py-1 text-xs text-cyan-200">GTFS-aware</span>
+          <span className="rounded-full bg-cyan-400/10 px-3 py-1 text-xs text-cyan-200">{text.gtfsAware}</span>
         </div>
         <label className="block text-sm text-slate-300" htmlFor="route-query">
           {text.searchRailLightBus}
@@ -152,8 +152,12 @@ export function Sidebar({
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-300">
                   <span className="rounded-full border border-white/10 px-2 py-1">{route.mode}</span>
-                  <span className="rounded-full border border-white/10 px-2 py-1">{route.stops.length} stops</span>
-                  <span className="rounded-full border border-white/10 px-2 py-1">{route.tripCount} trips</span>
+                  <span className="rounded-full border border-white/10 px-2 py-1">
+                    {text.stopsCount.replace('{count}', String(route.stops.length))}
+                  </span>
+                  <span className="rounded-full border border-white/10 px-2 py-1">
+                    {text.tripsCount.replace('{count}', String(route.tripCount))}
+                  </span>
                   {route.trainTemplateLabel ? (
                     <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2 py-1 text-cyan-100">
                       {route.trainTemplateLabel}
@@ -172,7 +176,7 @@ export function Sidebar({
       <section className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-white">{text.poiNodes}</h2>
-          <span className="rounded-full bg-amber-400/10 px-3 py-1 text-xs text-amber-200">React Flow</span>
+          <span className="rounded-full bg-amber-400/10 px-3 py-1 text-xs text-amber-200">{text.reactFlowBadge}</span>
         </div>
         <button
           className="w-full rounded-2xl border border-amber-300/40 bg-amber-400/10 px-4 py-3 text-sm font-medium text-amber-100 transition hover:border-amber-200 hover:bg-amber-400/20"
@@ -216,7 +220,7 @@ export function Sidebar({
       <section className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-white">{text.shareMap}</h2>
-          <span className="rounded-full bg-violet-400/10 px-3 py-1 text-xs text-violet-200">URL</span>
+          <span className="rounded-full bg-violet-400/10 px-3 py-1 text-xs text-violet-200">{text.urlBadge}</span>
         </div>
         <button
           className="w-full rounded-2xl border border-violet-300/40 bg-violet-400/10 px-4 py-3 text-sm font-medium text-violet-100 transition hover:border-violet-200 hover:bg-violet-400/20 disabled:cursor-not-allowed disabled:opacity-50"
@@ -233,7 +237,7 @@ export function Sidebar({
       <fieldset className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center justify-between">
           <legend className="text-sm font-semibold text-white">{text.language}</legend>
-          <span className="text-xs text-slate-400">RTL/LTR ready</span>
+          <span className="text-xs text-slate-400">{text.rtlReady}</span>
         </div>
         <div className="grid grid-cols-3 gap-2">
           {languages.map((language) => {
