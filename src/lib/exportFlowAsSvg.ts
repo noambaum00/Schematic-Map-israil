@@ -52,8 +52,13 @@ export async function exportFlowAsSvg<NodeType extends Node = Node, EdgeType ext
     document.body.append(link)
     link.click()
     link.remove()
-    URL.revokeObjectURL(blobUrl)
-  } finally {
+
     await reactFlow.setViewport(previousViewport, { duration: 0 })
+    await waitForPaint()
+    URL.revokeObjectURL(blobUrl)
+  } catch (error) {
+    await reactFlow.setViewport(previousViewport, { duration: 0 })
+    await waitForPaint()
+    throw error
   }
 }

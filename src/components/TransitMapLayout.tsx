@@ -148,6 +148,7 @@ export function TransitMapLayout() {
     setSelectedRouteId(routeId)
     resetCanvasState()
     setExportError(null)
+    setLoadError(null)
   }
 
   function handleNodesChange(changes: Parameters<typeof applyNodeChanges<CanvasNode>>[0]) {

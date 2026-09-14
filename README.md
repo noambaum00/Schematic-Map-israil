@@ -40,6 +40,11 @@ Deployment workflow:
 - builds with `npm ci && npm run build`
 - publishes the `dist/` directory via GitHub Pages
 
+Repository settings required:
+- open **Settings → Pages** in GitHub
+- set **Source** to **GitHub Actions**
+- keep the repository name aligned with the Vite `base` value in `vite.config.ts`
+
 ## Current GTFS parsing scope
 
 The current parser reads:

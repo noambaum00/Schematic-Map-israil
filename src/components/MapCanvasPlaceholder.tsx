@@ -98,7 +98,16 @@ function CanvasInner({
 
       <div className="relative z-10 grid flex-1 gap-6 p-6 lg:grid-cols-[minmax(0,1.65fr)_340px]">
         <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/70">
-          <div ref={wrapperRef} className="h-[720px] w-full">
+          <div
+            ref={wrapperRef}
+            aria-label="Interactive transit map canvas"
+            aria-describedby="canvas-region-description"
+            className="h-[720px] w-full"
+            role="region"
+          >
+            <p className="sr-only" id="canvas-region-description">
+              Use the interactive graph to inspect GTFS station nodes, add POI nodes, draw manual connections, and export the full viewport as SVG.
+            </p>
             <ReactFlow<CanvasNode, CanvasEdge>
               fitView
               attributionPosition="bottom-left"
