@@ -174,7 +174,9 @@ function CanvasInner({
           {route?.trainTemplateLabel ? (
             <article className="rounded-[1.5rem] border border-blue-200 bg-blue-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">{activeText.trainNumberTemplate}</p>
-              <p className={`mt-3 text-lg font-semibold text-blue-900 ${isRtl ? 'text-right' : 'text-left'}`}>{route.trainTemplateLabel}</p>
+              <p className={`mt-3 text-sm font-medium text-blue-900 ${isRtl ? 'text-right' : 'text-left'}`}>
+                {activeText.trainTemplateRendered.replace('{label}', route.trainTemplateLabel)}
+              </p>
             </article>
           ) : null}
         </aside>

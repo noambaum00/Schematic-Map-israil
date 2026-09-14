@@ -241,9 +241,9 @@ export function Sidebar({
               ))}
             </select>
           </div>
-          <ActionButton ariaLabel={text.addPoiActionLabel} icon={<PinIcon />} label={text.addPoi} onClick={onAddPoi} />
+          <ActionButton icon={<PinIcon />} label={text.addPoi} onClick={onAddPoi} />
           <ActionButton
-            ariaLabel={text.exportActionLabel}
+            ariaLabel={isExporting ? text.exportingSvg : text.exportActionLabel}
             disabled={isExporting}
             icon={<ExportIcon />}
             label={isExporting ? text.exportingSvg : text.exportSvg}
@@ -251,7 +251,7 @@ export function Sidebar({
           />
           <div className="sm:col-span-2">
             <ActionButton
-              ariaLabel={text.shareActionLabel}
+              ariaLabel={isSharing ? text.sharingMap : text.shareActionLabel}
               disabled={isSharing}
               icon={<ShareIcon />}
               label={isSharing ? text.sharingMap : text.shareMap}
