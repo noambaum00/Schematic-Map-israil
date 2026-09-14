@@ -43,8 +43,11 @@ export function MapCanvasPlaceholder({ activeLanguage, selectedRoutes }: MapCanv
                     into one schematic node while preserving child-stop metadata.
                   </p>
                 </div>
-                <div className="rounded-3xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
-                  ♿ Accessibility layer available
+                <div
+                  aria-label="Wheelchair accessibility layer available"
+                  className="rounded-3xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100"
+                >
+                  <span aria-hidden="true">♿</span> Accessibility layer available
                 </div>
               </div>
 

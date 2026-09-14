@@ -1,4 +1,4 @@
-# Schematic-Map-israil
+# Schematic Map Israel
 
 A Vite + React + TypeScript planning shell for an advanced schematic transit map generator for Israel's public transportation network.
 

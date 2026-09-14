@@ -61,6 +61,7 @@ export function Sidebar({ activeLanguage, onLanguageChange, query, onQueryChange
             return (
               <button
                 key={language}
+                aria-pressed={isActive}
                 className={`rounded-2xl border px-3 py-2 text-sm transition ${
                   isActive
                     ? 'border-cyan-300 bg-cyan-300/15 text-white'
