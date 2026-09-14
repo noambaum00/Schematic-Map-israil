@@ -117,6 +117,19 @@ function createStableHubId(stops: RawStopForHubClustering[], prefix: 'hub-parent
   return `${prefix}-${sortedStopIds.join('-')}`
 }
 
+function createSingleStopNode(stop: RawStopForHubClustering): HubNode {
+  return {
+    code: stop.stop_code,
+    constituent_stop_ids: [stop.stop_id],
+    id: stop.stop_id,
+    isTransferHub: false,
+    latitude: stop.stop_lat,
+    longitude: stop.stop_lon,
+    name: stop.stop_name,
+    wheelchairStatus: stop.wheelchairStatus,
+  }
+}
+
 function createHubNode(hubId: string, stops: RawStopForHubClustering[]): HubNode {
   const sortedStops = [...stops].sort((left, right) => left.stop_id.localeCompare(right.stop_id) || left.stop_name.localeCompare(right.stop_name))
   const constituentStopIds = sortedStops.map((stop) => stop.stop_id)
@@ -201,12 +214,12 @@ export function clusterStopsIntoTransferHubs(
 
   for (const [parentStationId, clusterStops] of parentStationClusters.entries()) {
     const hubId = parentStationId ? `hub-parent-${parentStationId}` : createStableHubId(clusterStops, 'hub-parent')
-    const hubNode = createHubNode(hubId, clusterStops)
+    const hubNode = clusterStops.length === 1 ? createSingleStopNode(clusterStops[0]!) : createHubNode(hubId, clusterStops)
 
     hubNodes.push(hubNode)
 
     for (const stop of clusterStops) {
-      stopToHubMap[stop.stop_id] = hubId
+      stopToHubMap[stop.stop_id] = hubNode.id
       clusteredStopIds.add(stop.stop_id)
     }
   }
@@ -216,16 +229,15 @@ export function clusterStopsIntoTransferHubs(
   )
 
   while (proximityCandidates.length > 0) {
-    const seedStop = proximityCandidates[0]
+    const seedStop = proximityCandidates[0]!
     const { cluster, remainingStops } = buildProximityCluster(seedStop, proximityCandidates, mergeRadiusMeters)
     proximityCandidates = remainingStops
 
-    const hubId = cluster.length > 1 ? createStableHubId(cluster, 'hub-geo') : cluster[0]!.stop_id
-    const hubNode = createHubNode(hubId, cluster)
+    const hubNode = cluster.length > 1 ? createHubNode(createStableHubId(cluster, 'hub-geo'), cluster) : createSingleStopNode(cluster[0]!)
     hubNodes.push(hubNode)
 
     for (const stop of cluster) {
-      stopToHubMap[stop.stop_id] = hubId
+      stopToHubMap[stop.stop_id] = hubNode.id
       clusteredStopIds.add(stop.stop_id)
     }
   }
@@ -235,7 +247,7 @@ export function clusterStopsIntoTransferHubs(
       continue
     }
 
-    const hubNode = createHubNode(stop.stop_id, [stop])
+    const hubNode = createSingleStopNode(stop)
     hubNodes.push(hubNode)
     stopToHubMap[stop.stop_id] = stop.stop_id
   }

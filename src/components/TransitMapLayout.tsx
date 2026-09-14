@@ -180,15 +180,8 @@ export function TransitMapLayout() {
     setManualEdges((currentEdges) => connectCanvasEdge(connection, currentEdges, nodes))
   }
 
-  function handleSelectionChange({ edges: selectedEdges, nodes: selectedNodes }: OnSelectionChangeParams<CanvasNode, CanvasEdge>) {
-    if (selectedNodes[0]) {
-      setSelectedNodeId(selectedNodes[0].id)
-      return
-    }
-
-    if (selectedEdges.length === 0) {
-      setSelectedNodeId(null)
-    }
+  function handleSelectionChange({ nodes: selectedNodes }: OnSelectionChangeParams<CanvasNode, CanvasEdge>) {
+    setSelectedNodeId(selectedNodes[0]?.id ?? null)
   }
 
   function handleAddPoi() {
